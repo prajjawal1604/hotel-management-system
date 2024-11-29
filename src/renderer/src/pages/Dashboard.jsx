@@ -55,7 +55,7 @@ const Dashboard = () => {
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <Dashboard userRole={role} />
+      <AllDashboard userRole={role} />
     </div>
   );
 };

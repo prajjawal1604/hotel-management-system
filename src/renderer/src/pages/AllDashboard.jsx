@@ -10,7 +10,7 @@ import AddSpaceModal from './modals/AddSpaceModal';
 import ConfirmationModal from './modals/ConfirmationModal';
 import RevenueStats from './RevenueStats';
 import CategoryEditModal from './modals/CategoryEditModal';
-import RoomOperationsModal from './RoomOperationsModal';
+import RoomOperationsModal from './modals/RoomOperationsModal';
 
 // Constants for room statuses
 const ROOM_STATUSES = {

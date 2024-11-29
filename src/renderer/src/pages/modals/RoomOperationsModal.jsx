@@ -1,8 +1,8 @@
 // RoomOperationsModal.jsx
 import { useState, useEffect } from 'react';
 import { X, ChevronRight } from 'lucide-react';
-import BookingForm from './BookingForm';
-import ServicesForm from './Services';
+import BookingForm from '../BookingForm';
+import ServicesForm from '../Services';
 
 const stages = [
   { id: 'booking', label: 'Booking' },
