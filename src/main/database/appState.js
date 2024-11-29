@@ -1,5 +1,3 @@
-// main/database/appState.js
-
 import { BrowserWindow } from 'electron';
 import { getDB } from './db';
 
@@ -41,32 +39,8 @@ export const AppState = {
   mainWindow: null,
   autoUpdateInterval: null,
   periodicRefreshInterval: null,
-
-  startPeriodicRefresh() {
-    if (this.periodicRefreshInterval) {
-      clearInterval(this.periodicRefreshInterval);
-    }
-  
-    // Log when refresh happens
-    console.log('Starting periodic refresh - will refresh every 60 minutes');
-    
-    // Initial refresh
-    this.resetAndRefresh();
-
-    // Set up interval (60 minutes = 60 * 60 * 1000 milliseconds)
-  this.periodicRefreshInterval = setInterval(() => {
-    console.log('Executing periodic refresh');
-    this.resetAndRefresh();
-  }, 60 * 60 * 1000);
-},
-
-stopPeriodicRefresh() {
-  if (this.periodicRefreshInterval) {
-    clearInterval(this.periodicRefreshInterval);
-    this.periodicRefreshInterval = null;
-    console.log('Stopped periodic refresh');
-  }
-},
+  _lastBroadcastedState: null,
+  _lastRefreshTimestamp: null,
 
   // Window Management
   setMainWindow(window) {
@@ -74,7 +48,19 @@ stopPeriodicRefresh() {
   },
 
   broadcastState() {
-    if (this.mainWindow) {
+    if (!this.mainWindow) return;
+
+    const currentState = JSON.stringify({
+      rooms: this.state.rooms,
+      categories: this.state.categories,
+      auth: this.state.auth,
+      subscription: this.state.subscription,
+      revenueStats: this.state.revenueStats
+    });
+
+    // Only broadcast if state has actually changed
+    if (this._lastBroadcastedState !== currentState) {
+      this._lastBroadcastedState = currentState;
       this.mainWindow.webContents.send('state-update', this.state);
     }
   },
@@ -152,7 +138,7 @@ stopPeriodicRefresh() {
 
       await this.loadInitialData();
       this.startAutoUpdate();
-      this.startPeriodicRefresh(); // Add this line
+      this.startPeriodicRefresh();
       this.broadcastState();
       
       const daysToExpire = Math.ceil((subEndDate - today) / (1000 * 60 * 60 * 24));
@@ -169,7 +155,7 @@ stopPeriodicRefresh() {
 
   logout() {
     this.stopAutoUpdate();
-    this.stopPeriodicRefresh(); // Add this line
+    this.stopPeriodicRefresh();
     this.resetState();
     this.broadcastState();
   },
@@ -201,6 +187,7 @@ stopPeriodicRefresh() {
       console.error('Error loading rooms:', error);
     }
   },
+
   // Room Management Methods
   updateRoomStats() {
     this.state.rooms.stats = {
@@ -216,34 +203,14 @@ stopPeriodicRefresh() {
       const db = getDB();
       const { name, ...updateData } = roomData;
   
-      // Fetch the existing room for context
       const existingRoom = await db.collection('Rooms').findOne({ name });
-  
       if (!existingRoom) {
         return { success: false, message: 'Room not found' };
       }
   
-      // Handle room updates based on its current status
       if (existingRoom.status === 'Occupied' && updateData.currentGuest) {
-        // Update current guest details for an occupied room
         const updatedFields = {
-          "currentGuest.name": updateData.currentGuest.name,
-          "currentGuest.phone_no": updateData.currentGuest.phone_no,
-          "currentGuest.gender": updateData.currentGuest.gender,
-          "currentGuest.aadhar": updateData.currentGuest.aadhar,
-          "currentGuest.age": updateData.currentGuest.age,
-          "currentGuest.permanent_address": updateData.currentGuest.permanent_address,
-          "currentGuest.company_name": updateData.currentGuest.company_name,
-          "currentGuest.nationality": updateData.currentGuest.nationality,
-          "currentGuest.designation": updateData.currentGuest.designation,
-          "currentGuest.purpose_of_visit": updateData.currentGuest.purpose_of_visit,
-          "currentGuest.dependants": updateData.currentGuest.dependants,
-          "currentGuest.GSTIN": updateData.currentGuest.GSTIN,
-          "currentGuest.services": updateData.currentGuest.services,
-          "currentGuest.total_cost": updateData.currentGuest.total_cost,
-          "currentGuest.method_of_payment": updateData.currentGuest.method_of_payment,
-          "currentGuest.checkin": updateData.currentGuest.checkin,
-          "currentGuest.checkout": updateData.currentGuest.checkout,
+          "currentGuest": updateData.currentGuest,
           lastUpdated: new Date().toISOString(),
         };
   
@@ -253,7 +220,6 @@ stopPeriodicRefresh() {
         );
   
         if (result.modifiedCount > 0) {
-          // Update local state
           this.state.rooms.list = this.state.rooms.list.map(room =>
             room.name === name ? { ...room, ...updatedFields } : room
           );
@@ -266,14 +232,12 @@ stopPeriodicRefresh() {
         return { success: false, message: 'No changes made to the room' };
       }
   
-      // For vacant or non-occupied rooms, update the general room data
       const result = await db.collection('Rooms').updateOne(
-        { name }, // Filter by room name
-        { $set: updateData } // Update the room data
+        { name },
+        { $set: updateData }
       );
   
       if (result.modifiedCount > 0) {
-        // Update local state
         this.state.rooms.list = this.state.rooms.list.map(room =>
           room.name === name ? { ...room, ...updateData } : room
         );
@@ -288,9 +252,7 @@ stopPeriodicRefresh() {
       console.error('Error updating room:', error);
       return { success: false, message: error.message };
     }
-  }
-  ,
-  
+  },
 
   // Category Management Methods
   async addCategory(categoryData) {
@@ -314,6 +276,60 @@ stopPeriodicRefresh() {
       return { success: false, message: 'Failed to add category' };
     } catch (error) {
       console.error('Error adding category:', error);
+      return { success: false, message: error.message };
+    }
+  },
+
+  async updateCategory(categoryData) {
+    try {
+      const db = getDB();
+      console.log('Updating category:', categoryData);
+  
+      const existingCategory = await db.collection('Categories').findOne({ 
+        name: categoryData.name 
+      });
+  
+      if (!existingCategory) {
+        return { success: false, message: 'Category not found' };
+      }
+  
+      const result = await db.collection('Categories').updateOne(
+        { name: categoryData.name },
+        { 
+          $set: {
+            type: categoryData.type,
+            lastUpdated: new Date().toISOString()
+          } 
+        }
+      );
+  
+      if (result.modifiedCount > 0) {
+        this.state.categories = this.state.categories.map(cat => 
+          cat.name === categoryData.name 
+            ? { 
+                ...cat,
+                type: categoryData.type,
+                lastUpdated: new Date().toISOString()
+              } 
+            : cat
+        );
+        
+        const rooms = await db.collection('Rooms').updateMany(
+          { categoryName: categoryData.name },
+          { 
+            $set: { 
+              categoryType: categoryData.type
+            } 
+          }
+        );
+        
+        this.broadcastState();
+        return { success: true };
+      }
+  
+      return { success: false, message: 'No changes made' };
+    } catch (error) {
+      console.error('Error updating category:', error);
       return { success: false, message: error.message };
     }
   },
@@ -468,173 +484,176 @@ stopPeriodicRefresh() {
     }
   },
 
-  // Refresh Method
+  // Refresh Methods
   async resetAndRefresh() {
     try {
-      console.log('Performing hard reset and refresh...');
+      const now = Date.now();
+      if (this._lastRefreshTimestamp && now - this._lastRefreshTimestamp < 5 * 60 * 1000) {
+        console.log('Skipping refresh - too soon since last refresh');
+        return { success: true, skipped: true };
+      }
+
+      console.log('Performing reset and refresh...');
+      
+      const oldState = JSON.stringify({
+        rooms: this.state.rooms,
+        revenueStats: this.state.revenueStats
+      });
+
       await this.loadInitialData();
-  
       const revenueStats = await this.calculateRevenueStats();
+      
       if (revenueStats.success) {
         this.state.revenueStats = revenueStats.data;
-        console.log('Updated revenue stats in state:', this.state.revenueStats);
-      } else {
-        console.error('Failed to calculate revenue stats:', revenueStats.message);
       }
-  
-      this.broadcastState();
-      console.log('State broadcasted:', this.state);
+
+      const newState = JSON.stringify({
+        rooms: this.state.rooms,
+        revenueStats: this.state.revenueStats
+      });
+
+      if (oldState !== newState) {
+        this.broadcastState();
+        console.log('State updated and broadcasted');
+      } else {
+        console.log('No changes detected during refresh');
+      }
+
+      this._lastRefreshTimestamp = now;
       return { success: true };
     } catch (error) {
-      console.error('Error during hard reset and refresh:', error);
+      console.error('Error during reset and refresh:', error);
       return { success: false, message: error.message };
     }
-  }
-  ,
+  },
+
+  startPeriodicRefresh() {
+    if (this.periodicRefreshInterval) {
+      clearInterval(this.periodicRefreshInterval);
+    }
   
-  // Add this at the end of AppState object
+    console.log('Starting periodic refresh - will refresh every 60 minutes');
+    
+    // Initial refresh
+    this.resetAndRefresh();
+
+    // Set up interval (60 minutes = 60 * 60 * 1000 milliseconds)
+    this.periodicRefreshInterval = setInterval(() => {
+      console.log('Executing periodic refresh');
+      this.resetAndRefresh();
+    }, 60 * 60 * 1000);
+  },
+
+  stopPeriodicRefresh() {
+    if (this.periodicRefreshInterval) {
+      clearInterval(this.periodicRefreshInterval);
+      this.periodicRefreshInterval = null;
+      console.log('Stopped periodic refresh');
+    }
+  },
+
   stopAllIntervals() {
     this.stopAutoUpdate();
     this.stopPeriodicRefresh();
   },
-  // main/database/appState.js
-  async updateCategory(categoryData) {
+
+  // Revenue Calculations
+  async calculateRevenueStats() {
     try {
       const db = getDB();
-      console.log('Updating category:', categoryData);
-  
-      // First find the existing category
-      const existingCategory = await db.collection('Categories').findOne({ 
-        name: categoryData.name 
-      });
-  
-      if (!existingCategory) {
-        return { success: false, message: 'Category not found' };
-      }
-  
-      const result = await db.collection('Categories').updateOne(
-        { name: categoryData.name }, // Using name as identifier instead of _id
-        { 
-          $set: {
-            type: categoryData.type,
-            lastUpdated: new Date().toISOString()
-          } 
-        }
-      );
-  
-      console.log('Update result:', result);
-  
-      if (result.modifiedCount > 0) {
-        // Update local state
-        this.state.categories = this.state.categories.map(cat => 
-          cat.name === categoryData.name 
-            ? { 
-                ...cat,
-                type: categoryData.type,
-                lastUpdated: new Date().toISOString()
-              } 
-            : cat
-        );
-        
-        // Update any rooms that use this category
-        const rooms = await db.collection('Rooms').updateMany(
-          { categoryName: categoryData.name },
-          { 
-            $set: { 
-              categoryType: categoryData.type
-            } 
+      const today = new Date();
+      const localOffset = today.getTimezoneOffset() * 60000; // Offset in milliseconds
+
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Monday of the current week
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+      // Adjust for local timezone
+      startOfDay.setTime(startOfDay.getTime() - localOffset);
+      startOfWeek.setTime(startOfWeek.getTime() - localOffset);
+      startOfMonth.setTime(startOfMonth.getTime() - localOffset);
+
+      // Query for today
+      const dailyRevenue = await db.collection('Bookings').aggregate([
+        {
+          $match: {
+            checkout: {
+              $gte: startOfDay,
+              $lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+            }
           }
-        );
-  
-        console.log('Updated associated rooms:', rooms);
-        
-        this.broadcastState();
-        return { success: true };
-      }
-  
-      return { success: false, message: 'No changes made' };
+        },
+        { $group: { _id: null, total: { $sum: '$total_cost' } } }
+      ]).toArray();
+
+      // Query for this week
+      const weeklyRevenue = await db.collection('Bookings').aggregate([
+        {
+          $match: {
+            checkout: {
+              $gte: startOfWeek,
+              $lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+            }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$total_cost' } } }
+      ]).toArray();
+
+      // Query for this month
+      const monthlyRevenue = await db.collection('Bookings').aggregate([
+        {
+          $match: {
+            checkout: {
+              $gte: startOfMonth,
+              $lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+            }
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$total_cost' } } }
+      ]).toArray();
+
+      return {
+        success: true,
+        data: {
+          dailyRevenue: dailyRevenue[0]?.total || 0,
+          weeklyRevenue: weeklyRevenue[0]?.total || 0,
+          monthlyRevenue: monthlyRevenue[0]?.total || 0
+        }
+      };
     } catch (error) {
-      console.error('Error updating category:', error);
+      console.error('Error calculating revenue stats:', error);
       return { success: false, message: error.message };
     }
   },
 
-// Add this method in AppState
-async calculateRevenueStats() {
+  // Force Refresh
+async forceRefresh() {
   try {
+    console.log('Performing forced refresh...');
+    
+    // Load fresh data from DB
     const db = getDB();
-    const today = new Date();
-    const localOffset = today.getTimezoneOffset() * 60000; // Offset in milliseconds
+    const categories = await db.collection('Categories').find({}).toArray();
+    const rooms = await db.collection('Rooms').find({}).toArray();
+    const revenueStats = await this.calculateRevenueStats();
 
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const startOfWeek = new Date(startOfDay);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // Monday of the current week
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    // Update state with fresh data
+    this.state.categories = categories;
+    this.state.rooms.list = rooms;
+    if (revenueStats.success) {
+      this.state.revenueStats = revenueStats.data;
+    }
 
-    // Adjust for local timezone
-    startOfDay.setTime(startOfDay.getTime() - localOffset);
-    startOfWeek.setTime(startOfWeek.getTime() - localOffset);
-    startOfMonth.setTime(startOfMonth.getTime() - localOffset);
-
-    console.log('Adjusted times for local timezone:', { startOfDay, startOfWeek, startOfMonth });
-
-    // Query for today
-    const dailyRevenue = await db.collection('Bookings').aggregate([
-      {
-        $match: {
-          checkout: {
-            $gte: startOfDay,
-            $lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000) // End of the day
-          }
-        }
-      },
-      { $group: { _id: null, total: { $sum: '$total_cost' } } } // Corrected field name
-    ]).toArray();
-
-    console.log('Daily revenue result:', dailyRevenue);
-
-    // Query for this week
-    const weeklyRevenue = await db.collection('Bookings').aggregate([
-      {
-        $match: {
-          checkout: {
-            $gte: startOfWeek,
-            $lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000) // End of the day
-          }
-        }
-      },
-      { $group: { _id: null, total: { $sum: '$total_cost' } } } // Corrected field name
-    ]).toArray();
-
-    console.log('Weekly revenue result:', weeklyRevenue);
-
-    // Query for this month
-    const monthlyRevenue = await db.collection('Bookings').aggregate([
-      {
-        $match: {
-          checkout: {
-            $gte: startOfMonth,
-            $lt: new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000) // End of the day
-          }
-        }
-      },
-      { $group: { _id: null, total: { $sum: '$total_cost' } } } // Corrected field name
-    ]).toArray();
-
-    console.log('Monthly revenue result:', monthlyRevenue);
-
-    return {
-      success: true,
-      data: {
-        dailyRevenue: dailyRevenue[0]?.total || 0,
-        weeklyRevenue: weeklyRevenue[0]?.total || 0,
-        monthlyRevenue: monthlyRevenue[0]?.total || 0
-      }
-    };
+    this.updateRoomStats();
+    // Force broadcast regardless of changes
+    this.mainWindow.webContents.send('state-update', this.state);
+    
+    console.log('Forced refresh completed');
+    return { success: true };
   } catch (error) {
-    console.error('Error calculating revenue stats:', error);
+    console.error('Error during forced refresh:', error);
     return { success: false, message: error.message };
   }
-}
-
+},
 };

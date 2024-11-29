@@ -1,11 +1,6 @@
-// preload/index.js
-
 import { contextBridge, ipcRenderer } from 'electron';
 
-// preload/index.js
 contextBridge.exposeInMainWorld('electron', {
- 
- 
   // State Management
   getState: () => ipcRenderer.invoke('get-state'),
   onStateUpdate: (callback) => {
@@ -14,7 +9,7 @@ contextBridge.exposeInMainWorld('electron', {
     return () => ipcRenderer.removeListener('state-update', subscription);
   },
 
-  // Auth
+  // Authentication
   login: (credentials) => ipcRenderer.invoke('login', credentials),
   logout: () => ipcRenderer.invoke('logout'),
 
@@ -23,7 +18,7 @@ contextBridge.exposeInMainWorld('electron', {
   getRoomStats: () => ipcRenderer.invoke('get-room-stats'),
   updateRoom: (data) => ipcRenderer.invoke('updateRoom', data),
 
-  // Category Management - Fixed naming consistency
+  // Category Management
   addCategory: (data) => ipcRenderer.invoke('addCategory', data),
   updateCategory: (data) => ipcRenderer.invoke('updateCategory', data),
   deleteCategory: (name) => ipcRenderer.invoke('deleteCategory', name),
@@ -32,6 +27,10 @@ contextBridge.exposeInMainWorld('electron', {
   addSpace: (data) => ipcRenderer.invoke('addSpace', data),
   deleteSpace: (data) => ipcRenderer.invoke('deleteSpace', data),
 
-  // System
+  // Revenue Management
+  getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats'),
+
+  // State Refresh
   resetAndRefresh: () => ipcRenderer.invoke('reset-and-refresh'),
+  forceRefresh: () => ipcRenderer.invoke('force-refresh'),
 });

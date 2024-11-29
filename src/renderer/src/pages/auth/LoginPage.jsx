@@ -1,6 +1,4 @@
-// renderer/src/pages/auth/LoginPage.jsx
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Shield, Eye, EyeOff, Loader } from 'lucide-react';
 
@@ -15,14 +13,20 @@ const LoginPage = () => {
     password: ''
   });
 
-  // Validation states
   const [errors, setErrors] = useState({
     email: '',
     password: '',
     general: ''
   });
 
-  // Form validation function
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      setIsLoading(false);
+      setErrors({ email: '', password: '', general: '' });
+    };
+  }, []);
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = { email: '', password: '', general: '' };
@@ -62,31 +66,37 @@ const LoginPage = () => {
         role: selectedRole
       });
 
-  
       if (result.success) {        
         if (result.warning) {
           alert(result.warning);
         }
-  
-        const destinationPath = `/dashboard/${selectedRole}`;
-        console.log('Navigating to:', destinationPath);
-        navigate(destinationPath);
-        console.log('Navigation triggered');
+        navigate(`/dashboard/${selectedRole}`, { replace: true });
       } else {
-        console.log('Login failed:', result.message);
         setErrors({
           ...errors,
           general: result.message || 'Invalid credentials'
         });
       }
     } catch (error) {
-      console.error('Login error:', error);
       setErrors({
         ...errors,
-        general: 'Login failed. Please try again.'
+        general: error.message || 'Login failed. Please try again.'
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field) => (e) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: e.target.value
+    }));
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
     }
   };
 
@@ -97,14 +107,12 @@ const LoginPage = () => {
           Sign In
         </h1>
 
-        {/* General Error Message */}
         {errors.general && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
             {errors.general}
           </div>
         )}
 
-        {/* Role Selection */}
         <div className="flex gap-4 mb-6">
           <button
             type="button"
@@ -135,77 +143,69 @@ const LoginPage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
-  {/* Email Field */}
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      Email
-    </label>
-    <input
-      type="email"
-      value={formData.email}
-      onChange={(e) => {
-        setFormData({ ...formData, email: e.target.value });
-        if (errors.email) setErrors({ ...errors, email: '' });
-      }}
-      onBlur={() => {
-        if (!formData.email) {
-          setErrors({ ...errors, email: 'Email is required' });
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-          setErrors({ ...errors, email: 'Please enter a valid email' });
-        }
-      }}
-      disabled={isLoading}
-      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
-        ${errors.email ? 'border-red-500' : 'border-gray-300'}
-        ${isLoading ? 'bg-gray-100' : 'bg-white'}`}
-      placeholder="Enter your email"
-    />
-    {errors.email && (
-      <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-    )}
-  </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={handleInputChange('email')}
+              onBlur={() => {
+                if (!formData.email) {
+                  setErrors(prev => ({ ...prev, email: 'Email is required' }));
+                } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+                  setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
+                }
+              }}
+              disabled={isLoading}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+                ${errors.email ? 'border-red-500' : 'border-gray-300'}
+                ${isLoading ? 'bg-gray-100' : 'bg-white'}`}
+              placeholder="Enter your email"
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+            )}
+          </div>
 
-  {/* Password Field */}
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      Password
-    </label>
-    <div className="relative">
-      <input
-        type={showPassword ? "text" : "password"}
-        value={formData.password}
-        onChange={(e) => {
-          setFormData({ ...formData, password: e.target.value });
-          if (errors.password) setErrors({ ...errors, password: '' });
-        }}
-        onBlur={() => {
-          if (!formData.password) {
-            setErrors({ ...errors, password: 'Password is required' });
-          } else if (formData.password.length < 6) {
-            setErrors({ ...errors, password: 'Password must be at least 6 characters' });
-          }
-        }}
-        disabled={isLoading}
-        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
-          ${errors.password ? 'border-red-500' : 'border-gray-300'}
-          ${isLoading ? 'bg-gray-100' : 'bg-white'}`}
-        placeholder="Enter your password"
-      />
-      <button
-        type="button"
-        disabled={isLoading}
-        onClick={() => setShowPassword(!showPassword)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-      >
-        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-      </button>
-    </div>
-    {errors.password && (
-      <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-    )}
-  </div>
-   {/* Submit Button */}
-   <button
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                onBlur={() => {
+                  if (!formData.password) {
+                    setErrors(prev => ({ ...prev, password: 'Password is required' }));
+                  } else if (formData.password.length < 6) {
+                    setErrors(prev => ({ ...prev, password: 'Password must be at least 6 characters' }));
+                  }
+                }}
+                disabled={isLoading}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+                  ${errors.password ? 'border-red-500' : 'border-gray-300'}
+                  ${isLoading ? 'bg-gray-100' : 'bg-white'}`}
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+            )}
+          </div>
+
+          <button
             type="submit"
             disabled={isLoading}
             className={`w-full py-2 px-4 bg-blue-600 text-white rounded-md transition-colors
@@ -223,7 +223,7 @@ const LoginPage = () => {
               )}
             </span>
           </button>
-</form>
+        </form>
       </div>
     </div>
   );

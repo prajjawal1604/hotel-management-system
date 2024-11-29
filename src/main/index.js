@@ -1,5 +1,3 @@
-// main/index.js
-
 import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { connectDB, closeDB, getDB } from './database/db';
 import { AppState } from './database/appState'; 
@@ -10,7 +8,6 @@ import icon from '../../resources/icon.png?asset';
 const MONGODB_URI = "mongodb+srv://tarunpereddideveloper:grNXUQTFUrVT3fdm@cluster0.xskhj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 function createWindow() {
-  // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -27,15 +24,13 @@ function createWindow() {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-  })
+  });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
-  })
+  });
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -43,19 +38,15 @@ function createWindow() {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+// Initialization
 app.whenReady().then(async () => {
   try {
-    // Connect to MongoDB
     await connectDB(MONGODB_URI);
-    await AppState.loadRoomData();  // Load initial data
+    // Changed from loadRoomData to loadInitialData for consistent initial state
+    await AppState.loadInitialData();
     
-    // Set app user model id for windows
     electronApp.setAppUserModelId('com.electron');
 
-    // DevTools shortcuts
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window);
     });
@@ -72,10 +63,9 @@ app.whenReady().then(async () => {
   }
 });
 
-// Quit when all windows are closed, except on macOS.
+// Clean up
 app.on('window-all-closed', async () => {
-  AppState.stopAutoUpdate();  // Stop the auto-update 
-  AppState.stopAllIntervals();  // Add this linecheck
+  AppState.stopAllIntervals();  // This now handles both autoUpdate and periodicRefresh
   await closeDB();
   if (process.platform !== 'darwin') {
     app.quit();
@@ -96,6 +86,7 @@ ipcMain.handle('logout', () => {
   return { success: true };
 });
 
+// Room Management
 ipcMain.handle('get-rooms', () => {
   return { 
     success: true, 
@@ -114,7 +105,7 @@ ipcMain.handle('updateRoom', async (_, roomData) => {
   return AppState.updateRoom(roomData);
 });
 
-// Add new IPC handlers
+// Space Management
 ipcMain.handle('addSpace', async (_, spaceData) => {
   return AppState.addSpace(spaceData);
 });
@@ -123,17 +114,21 @@ ipcMain.handle('deleteSpace', async (_, spaceData) => {
   return AppState.deleteSpace(spaceData);
 });
 
+// Refresh Handlers
 ipcMain.handle('reset-and-refresh', async () => {
   return AppState.resetAndRefresh();
-
-  
 });
 
+ipcMain.handle('force-refresh', async () => {
+  return AppState.forceRefresh();
+});
+
+// Revenue Stats
 ipcMain.handle('get-revenue-stats', async () => {
   return AppState.calculateRevenueStats();
 });
 
-// Update your IPC handlers to match
+// Category Management
 ipcMain.handle('addCategory', async (_, categoryData) => {
   return AppState.addCategory(categoryData);
 });
