@@ -1,5 +1,5 @@
 // renderer/src/pages/AdminDashboard.jsx
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef,useCallback , memo } from 'react';
 import { Search, Loader, Plus, Trash2, X, Edit } from 'lucide-react';
 
 // Component imports
@@ -434,14 +434,49 @@ const AdminDashboard = ({ userRole }) => {
   ));
 
   const SearchAndFilters = memo(() => {
+    // Use local state instead of depending on parent state
     const [searchValue, setSearchValue] = useState('');
     
-    const handleSearchClick = () => {
+    // Memoize the search handler to prevent recreating on every render
+    const handleSearchClick = useCallback(() => {
       if (searchValue.trim()) {
         handleSearch(searchValue.trim());
       }
-    };
-
+    }, [searchValue]);
+  
+    // Memoize the clear handler
+    const handleClear = useCallback(() => {
+      setSearchValue('');
+      clearSearch();
+    }, []);
+  
+    // Memoize filter change handlers
+    const handleStatusChange = useCallback((e) => {
+      setAppState(prev => ({
+        ...prev,
+        rooms: {
+          ...prev.rooms,
+          filters: {
+            ...prev.rooms.filters,
+            status: e.target.value
+          }
+        }
+      }));
+    }, []);
+  
+    const handleSortChange = useCallback((e) => {
+      setAppState(prev => ({
+        ...prev,
+        rooms: {
+          ...prev.rooms,
+          filters: {
+            ...prev.rooms.filters,
+            sort: e.target.value
+          }
+        }
+      }));
+    }, []);
+  
     return (
       <div className="bg-white p-4 rounded-lg shadow-sm">
         <div className="flex flex-col md:flex-row gap-4">
@@ -464,10 +499,7 @@ const AdminDashboard = ({ userRole }) => {
             </div>
             {isSearching ? (
               <button
-                onClick={() => {
-                  setSearchValue('');
-                  clearSearch();
-                }}
+                onClick={handleClear}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 
                   transition-colors flex items-center gap-2"
               >
@@ -490,18 +522,7 @@ const AdminDashboard = ({ userRole }) => {
             <select
               className="w-40 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               value={appState.rooms.filters.status}
-              onChange={(e) => {
-                setAppState(prev => ({
-                  ...prev,
-                  rooms: {
-                    ...prev.rooms,
-                    filters: {
-                      ...prev.rooms.filters,
-                      status: e.target.value
-                    }
-                  }
-                }));
-              }}
+              onChange={handleStatusChange}
             >
               <option value="all">All Status</option>
               {Object.values(ROOM_STATUSES).map(status => (
@@ -514,18 +535,7 @@ const AdminDashboard = ({ userRole }) => {
             <select
               className="w-52 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               value={appState.rooms.filters.sort}
-              onChange={(e) => {
-                setAppState(prev => ({
-                  ...prev,
-                  rooms: {
-                    ...prev.rooms,
-                    filters: {
-                      ...prev.rooms.filters,
-                      sort: e.target.value
-                    }
-                  }
-                }));
-              }}
+              onChange={handleSortChange}
             >
               <option value="default">Sort by</option>
               <option value="price_high">Price: High to Low</option>
@@ -534,8 +544,8 @@ const AdminDashboard = ({ userRole }) => {
           </div>
         </div>
       </div>
-     );
-    });
+    );
+  });
 
   // Status Legend Component
   const RoomStatusLegend = memo(() => {

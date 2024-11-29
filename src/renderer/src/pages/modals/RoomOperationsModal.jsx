@@ -279,7 +279,7 @@ const RoomOperationsModal = ({ room, onClose }) => {
       case 'booking':
         return <BookingForm room={room} formData={formData} setFormData={setFormData} />;
       case 'services':
-        return <ServicesForm formData={formData} setFormData={setFormData} />;
+        return <ServicesForm room={room} formData={formData} setFormData={setFormData} onClose={onClose} />;
       case 'checkout':
         return <CheckoutForm room={room} formData={formData} />;
       default:
