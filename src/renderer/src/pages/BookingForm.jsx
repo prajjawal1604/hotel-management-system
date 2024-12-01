@@ -1,4 +1,5 @@
 import { PlusCircle, X, Calendar, Building2, Users, CreditCard, Upload, Trash2 } from 'lucide-react';
+import InputField from './InputField';  // Adjust the path as needed
 
 const BookingForm = ({ room, formData, setFormData, validationErrors = {} }) => {
   const isEditingDisabled = room.status === 'Occupied' || room.status === 'CheckoutPending';
@@ -83,23 +84,23 @@ const BookingForm = ({ room, formData, setFormData, validationErrors = {} }) => 
     });
   };
 
-  const InputField = ({ label, error, ...props }) => (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-600">
-        {label}
-        {props.required && '*'}
-      </label>
-      <input
-        {...props}
-        className={`w-full px-4 py-2 rounded-lg border ${
-          error ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-500'
-        } focus:border-transparent`}
-      />
-      {error && (
-        <p className="text-sm text-red-600 mt-1">{error}</p>
-      )}
-    </div>
-  );
+  // const InputField = ({ label, error, ...props }) => (
+  //   <div className="space-y-2">
+  //     <label className="block text-sm font-medium text-gray-600">
+  //       {label}
+  //       {props.required && '*'}
+  //     </label>
+  //     <input
+  //       {...props}
+  //       className={`w-full px-4 py-2 rounded-lg border ${
+  //         error ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-500'
+  //       } focus:border-transparent`}
+  //     />
+  //     {error && (
+  //       <p className="text-sm text-red-600 mt-1">{error}</p>
+  //     )}
+  //   </div>
+  // );
 
   const SelectField = ({ label, error, children, ...props }) => (
     <div className="space-y-2">

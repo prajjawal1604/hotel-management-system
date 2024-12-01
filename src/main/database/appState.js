@@ -868,6 +868,7 @@ export const AppState = {
       }
   
       // Save booking details
+      
       const bookingData = {
         guestDetails: { ...room.currentGuest, dependants: room.currentGuest.dependants || [] },
         roomDetails: {
