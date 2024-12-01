@@ -74,6 +74,7 @@ const formatPhoneNumber = (phoneNo) => {
 
 const AdminDashboard = ({ userRole }) => {
   // State initialization
+  let key = 0;
   const [appState, setAppState] = useState({
     rooms: {
       list: [],
@@ -238,11 +239,7 @@ const AdminDashboard = ({ userRole }) => {
     const [timeUntilCheckout, setTimeUntilCheckout] = useState('');
   
     // Add status check timer
-    useEffect(() => {
-      // Debug log to check if we're entering the condition
-      console.log('Current Guest:', room.currentGuest);
-      console.log('Checkout Date:', room.currentGuest?.checkout);
-    
+    useEffect(() => {    
       if (room.currentGuest?.checkout) { // Changed from checkout?.$date
         const checkStatus = () => {
           const now = new Date();
@@ -526,7 +523,7 @@ const AdminDashboard = ({ userRole }) => {
             >
               <option value="all">All Status</option>
               {Object.values(ROOM_STATUSES).map(status => (
-                <option key={status} value={status}>
+                <option key={`${status}-1`} value={status}>
                   {status === ROOM_STATUSES.CHECKOUT_PENDING ? 'Checkout Pending' : status}
                 </option>
               ))}
@@ -555,7 +552,7 @@ const AdminDashboard = ({ userRole }) => {
           <span className="text-gray-600 font-medium">Room Status:</span>
           <div className="flex gap-6">
             {Object.entries(STATUS_COLORS).map(([status, config]) => (
-              <div key={status} className="flex items-center gap-2">
+              <div key={`${status}-2`} className="flex items-center gap-2">
                 <div 
                   className="w-4 h-4 rounded" 
                   style={{ backgroundColor: config.bg }}
@@ -617,7 +614,7 @@ const AdminDashboard = ({ userRole }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredRooms.map((room) => (
                 <RoomCard 
-                  key={room.name} 
+                  key={`search-${room.categoryName}-${room.name}`} 
                   room={room} 
                   onDelete={handleDeleteSpace}
                   role={userRole}
@@ -671,7 +668,7 @@ const AdminDashboard = ({ userRole }) => {
                   .filter(room => room.categoryName === category.name)
                   .map(room => (
                     <RoomCard 
-                      key={room.name} 
+                      key={`${category._id}-${room.name}`} 
                       room={room} 
                       onDelete={handleDeleteSpace}
                       role={userRole}
@@ -719,3 +716,7 @@ const AdminDashboard = ({ userRole }) => {
 };
 
 export default AdminDashboard;
+
+
+
+

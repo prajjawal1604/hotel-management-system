@@ -33,4 +33,13 @@ contextBridge.exposeInMainWorld('electron', {
   // State Refresh
   resetAndRefresh: () => ipcRenderer.invoke('reset-and-refresh'),
   forceRefresh: () => ipcRenderer.invoke('force-refresh'),
+
+  calculateCheckout: (roomName) => ipcRenderer.invoke('calculate-checkout', roomName),
+  checkoutRoom: (roomName) => ipcRenderer.invoke('checkout-room', roomName),
+
+  saveBooking: (data) => ipcRenderer.invoke('save-booking', data),
+  generatePdf: (data) => ipcRenderer.invoke('generate-pdf', data),
+  showNotification: (options) => ipcRenderer.invoke('show-notification', options),
+
+
 });

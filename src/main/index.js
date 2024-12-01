@@ -1,9 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Notification } from 'electron';
 import { connectDB, closeDB, getDB } from './database/db';
 import { AppState } from './database/appState'; 
+import { generatePdf } from './pdfGenerator';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+
 
 const MONGODB_URI = "mongodb+srv://tarunpereddideveloper:grNXUQTFUrVT3fdm@cluster0.xskhj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
@@ -139,4 +141,25 @@ ipcMain.handle('updateCategory', async (_, categoryData) => {
 
 ipcMain.handle('deleteCategory', async (_, categoryName) => {
   return AppState.deleteCategory(categoryName);
+});
+
+ipcMain.handle('calculate-checkout', async (_, roomName) => {
+  return AppState.calculateCheckoutCost(roomName);
+});
+
+ipcMain.handle('checkout-room', async (_, roomName) => {
+  return AppState.checkoutRoom(roomName);
+});
+
+ipcMain.handle('save-booking', async (_, bookingData) => {
+  return await AppState.saveBooking(bookingData);
+});
+
+ipcMain.handle('generate-pdf', async (_, bookingData) => {
+  return await generatePdf(bookingData);
+});
+
+
+ipcMain.handle('show-notification', async (_, options) => {
+  new Notification(options).show();
 });
