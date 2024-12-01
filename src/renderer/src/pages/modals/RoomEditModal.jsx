@@ -10,7 +10,7 @@ const RoomEditModal = ({ room, onClose, onSave }) => {
     type: room.type,
     categoryName: room.categoryName,
     basePricePerNight: room.basePricePerNight,
-    gstPercentage: room.gstPercentage || 18,
+    gstPercentage: room.gstPercentage || 12,
     maxPeople: room.maxPeople || { kids: 2, adults: 2 }
   });
   

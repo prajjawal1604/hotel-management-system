@@ -6,7 +6,7 @@ const CategoryEditModal = ({ category, onClose }) => {
   // Initialize with empty values and set them properly when category is available
   const [formData, setFormData] = useState(() => ({
     name: category?.name || '',
-    type: category?.type || 'room'
+    type: category?.type || 'Room'
   }));
   
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +17,7 @@ const CategoryEditModal = ({ category, onClose }) => {
     if (category) {
       setFormData({
         name: category.name || '',
-        type: category.type || 'room'
+        type: category.type || 'Room'
       });
     }
   }, [category]);
