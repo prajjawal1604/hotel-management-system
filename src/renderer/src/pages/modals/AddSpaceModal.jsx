@@ -9,7 +9,7 @@ const AddSpaceModal = ({ categoryName, categoryType, onClose }) => {
     type: '',
     categoryName: categoryName,
     basePricePerNight: 0,
-    gstPercentage: 18,
+    gstPercentage: 12,
     maxPeople: { kids: 2, adults: 2 },
     status: 'Maintenance'  // Default status for new spaces
   });
