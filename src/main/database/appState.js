@@ -396,46 +396,34 @@ export const AppState = {
       if (!room || !room.currentGuest) {
         throw new Error('Room or guest not found');
       }
-
-      // Extract dates and handle MongoDB date format
+  
+      // Calculate duration
       const checkin = new Date(room.currentGuest.checkin.$date || room.currentGuest.checkin);
-      const checkout = new Date(room.currentGuest.checkout.$date || room.currentGuest.checkout);
-
-      // Calculate days and extra hours based on 8 AM rule
-      const { fullDays, extraHours } = calculateDaysAndExtraHours(checkin, checkout);
-
-      // Calculate base room charges
-      const roomCharges = fullDays * room.basePricePerNight;
-
-      // Calculate MICE charges (50% of daily rate for extra hours)
-      const hourlyRate = (room.basePricePerNight * CHECKOUT_CONSTANTS.HOURLY_RATE_FACTOR) / 24;
-      const miceCharges = extraHours * hourlyRate;
-
+      const checkout = new Date(); // Current time
+      const days = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
+  
+      // Calculate charges
+      const roomCharges = days * room.basePricePerNight;
+      
       // Calculate service charges
-      const serviceCharges = calculateServiceCharges(room.currentGuest.services);
-
-      // Calculate GST (only on room charges and MICE charges, not on services)
-      const gstableAmount = roomCharges + miceCharges;
-      const gstAmount = (gstableAmount * room.gstPercentage) / 100;
-
-      // Calculate total
-      const totalCost = roomCharges + miceCharges + serviceCharges + gstAmount;
-
+      const serviceCharges = (room.currentGuest.services || [])
+        .reduce((total, service) => total + (service.cost * service.units), 0);
+  
+      // Calculate GST
+      const gstAmount = (roomCharges * room.gstPercentage) / 100;
+  
       return {
         success: true,
         data: {
           roomCharges,
-          miceCharges,
           serviceCharges,
           gstAmount,
-          totalCost,
+          totalAmount: roomCharges + serviceCharges + gstAmount,
           breakdown: {
-            fullDays,
-            extraHours,
+            fullDays: days,
             baseRate: room.basePricePerNight,
             gstPercentage: room.gstPercentage,
-            gstableAmount,
-            servicesBreakdown: room.currentGuest.services
+            servicesBreakdown: room.currentGuest.services || []
           },
           checkin,
           checkout,
@@ -443,7 +431,8 @@ export const AppState = {
           roomDetails: {
             name: room.name,
             type: room.type,
-            category: room.categoryName
+            category: room.categoryName,
+            baseRate: room.basePricePerNight
           }
         }
       };

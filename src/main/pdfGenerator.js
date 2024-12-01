@@ -1,7 +1,7 @@
-// pdfGenerator.js
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const { dialog } = require('electron');
+const path = require('path');
 
 export async function generatePdf(bookingData) {
   try {
@@ -11,243 +11,278 @@ export async function generatePdf(bookingData) {
       filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
     });
 
-    if (!filePath) {
-      return { success: false, message: 'Save location not selected' };
-    }
+    if (!filePath) return { success: false, message: 'Save location not selected' };
 
+    // Create PDF with better defaults
     const doc = new PDFDocument({
       size: 'A4',
-      margin: 40,
-      bufferPages: true, // Enable page buffering for footer
+      margin: 50,
+      bufferPages: true,
+      autoFirstPage: true,
+      info: {
+        Title: `Invoice - ${bookingData.billNo}`,
+        Author: bookingData.hotelDetails.name,
+      }
     });
 
     const writeStream = fs.createWriteStream(filePath);
     doc.pipe(writeStream);
 
-    // Add footer to all pages
-    doc.on('pageAdded', () => addFooter(doc, bookingData.hotelDetails.name));
-
-    // First page - Professional Invoice
-    generateInvoicePage(doc, bookingData);
-
-    // Second page - Guest Details
-    if (bookingData.guestDetails.dependants?.length > 0) {
-      checkPageSpace(doc, 100); // Check for space before adding a new page
-      generateGuestDetailsPage(doc, bookingData);
+    // Register custom font if available
+    try {
+      doc.registerFont('CustomFont', path.join(__dirname, '../assets/fonts/Arial.ttf'));
+    } catch (error) {
+      console.log('Using default font, custom font not found:', error);
     }
 
-    // Append Documents with proper error handling
-    await appendDocuments(doc, bookingData);
+    // Add header to all pages
+    doc.on('pageAdded', () => {
+      addHeader(doc, bookingData.hotelDetails);
+      addFooter(doc, bookingData.hotelDetails.name);
+    });
 
+    // Generate invoice content
+    await generateInvoiceContent(doc, bookingData);
+
+    // Handle document attachments
+    if (bookingData.guestDetails.uploads?.length > 0 || 
+        bookingData.guestDetails.dependants?.some(d => d.uploads?.length > 0)) {
+      doc.addPage();
+      doc.fontSize(16).font('Helvetica-Bold')
+         .text('Attached Documents', { align: 'center' });
+      await appendDocuments(doc, bookingData);
+    }
+
+    // Finalize the PDF
     doc.end();
 
     return new Promise((resolve, reject) => {
-      writeStream.on('finish', () => {
-        resolve({ success: true, filePath });
-      });
+      writeStream.on('finish', () => resolve({ success: true, filePath }));
       writeStream.on('error', reject);
     });
+
   } catch (error) {
     console.error('PDF generation error:', error);
     return { success: false, message: error.message };
   }
 }
 
-function generateInvoicePage(doc, bookingData) {
-  doc.fontSize(24).font('Helvetica-Bold').text(bookingData.hotelDetails.name, { align: 'center' });
+function addHeader(doc, hotelDetails) {
+  const startY = doc.page.margins.top;
+  
+  doc.fontSize(20).font('Helvetica-Bold')
+     .text(hotelDetails.name, { align: 'center' });
 
-  doc.fontSize(10)
-    .font('Helvetica')
-    .text(bookingData.hotelDetails.address, { align: 'center' })
-    .text(`Phone: ${bookingData.hotelDetails.phone}`, { align: 'center' })
-    .text(`GSTIN: ${bookingData.hotelDetails.gstin}`, { align: 'center' });
-
-  doc.moveTo(40, doc.y + 10).lineTo(doc.page.width - 40, doc.y + 10).stroke();
-
-  doc.moveDown(2);
-  generateInvoiceInfoBox(doc, bookingData);
+  doc.fontSize(10).font('Helvetica')
+     .text(hotelDetails.address, { align: 'center' })
+     .text(`Phone: ${hotelDetails.phone}`, { align: 'center' })
+     .text(`GSTIN: ${hotelDetails.gstin}`, { align: 'center' });
 
   doc.moveDown();
-  generateGuestInfoBox(doc, bookingData);
+  doc.moveTo(doc.page.margins.left, doc.y)
+     .lineTo(doc.page.width - doc.page.margins.right, doc.y)
+     .stroke();
 
-  doc.moveDown(2);
-  generateBillTable(doc, bookingData);
+  doc.y = startY + 120; // Fixed position after header
+}
+
+function addFooter(doc, hotelName) {
+  const pageNumber = doc.bufferedPageRange().count;
+  doc.fontSize(8)
+     .text(
+       `${hotelName} - Page ${pageNumber}`,
+       doc.page.margins.left,
+       doc.page.height - 30,
+       { align: 'center' }
+     );
+}
+
+async function generateInvoiceContent(doc, bookingData) {
+  // Invoice info box
+  generateInvoiceInfoBox(doc, bookingData);
+  doc.moveDown();
+
+  // Guest info
+  generateGuestInfoBox(doc, bookingData);
+  doc.moveDown();
+
+  // Charges table
+  generateChargesTable(doc, bookingData);
+
+  // If there are dependants, add their details
+  if (bookingData.guestDetails.dependants?.length > 0) {
+    doc.addPage();
+    generateDependantDetails(doc, bookingData);
+  }
 }
 
 function generateInvoiceInfoBox(doc, bookingData) {
-  const startY = doc.y;
-  const boxHeight = 60;
-  const boxWidth = doc.page.width - 80;
+  const box = doc.rect(
+    doc.page.margins.left,
+    doc.y,
+    doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    80
+  ).stroke();
 
-  doc.rect(40, startY, boxWidth, boxHeight).stroke();
+  doc.fontSize(14).font('Helvetica-Bold')
+     .text('TAX INVOICE', doc.page.margins.left + 10, doc.y - 70);
 
-  doc.fontSize(12).font('Helvetica-Bold').text('TAX INVOICE', 50, startY + 10);
-  doc.fontSize(10)
-    .font('Helvetica')
-    .text(`Bill No: ${bookingData.billNo}`, 50, startY + 30)
-    .text(`Date: ${new Date(bookingData.checkoutTimestamp).toLocaleDateString()}`, 50, startY + 45);
+  const leftCol = doc.page.margins.left + 10;
+  const rightCol = doc.page.width - doc.page.margins.right - 200;
 
-  doc.fontSize(10)
-    .text(`Check In: ${new Date(bookingData.stayDetails.checkin).toLocaleString()}`, boxWidth - 200, startY + 10)
-    .text(`Check Out: ${new Date(bookingData.stayDetails.checkout).toLocaleString()}`, boxWidth - 200, startY + 25);
-
-  doc.y = startY + boxHeight + 10;
+  doc.fontSize(10).font('Helvetica')
+     .text(`Bill No: ${bookingData.billNo}`, leftCol, doc.y - 45)
+     .text(`Date: ${new Date(bookingData.checkoutTimestamp).toLocaleDateString()}`, leftCol, doc.y - 25)
+     .text(`Check In: ${new Date(bookingData.stayDetails.checkin).toLocaleString()}`, rightCol, doc.y - 45)
+     .text(`Check Out: ${new Date(bookingData.stayDetails.checkout).toLocaleString()}`, rightCol, doc.y - 25);
 }
 
-function generateGuestInfoBox(doc, bookingData) {
-  const startY = doc.y;
-  const boxHeight = bookingData.guestDetails.company_name ? 120 : 90;
-  const boxWidth = doc.page.width - 80;
+// Additional functions will continue in the next parts...
+// ... continuing from previous part
 
-  doc.rect(40, startY, boxWidth, boxHeight).stroke();
-
-  doc.fontSize(12).font('Helvetica-Bold').text('Guest Details', 50, startY + 10);
-
-  doc.fontSize(10)
-    .font('Helvetica')
-    .text(`Name: ${bookingData.guestDetails.name}`, 50, startY + 30)
-    .text(`Phone: ${bookingData.guestDetails.phone_no}`, 50, startY + 45)
-    .text(`Address: ${bookingData.guestDetails.permanent_address}`, 50, startY + 60);
-
-  if (bookingData.guestDetails.company_name) {
-    doc.fontSize(10)
-      .text(`Company: ${bookingData.guestDetails.company_name}`, 50, startY + 80)
-      .text(`GSTIN: ${bookingData.guestDetails.GSTIN || 'N/A'}`, 50, startY + 95);
-  }
-
-  doc.y = startY + boxHeight + 10;
-}
-
-function generateBillTable(doc, bookingData) {
-  const startY = doc.y;
+function generateChargesTable(doc, bookingData) {
   const { charges, roomDetails, services, stayDetails } = bookingData;
+  
+  // Table headers
+  const headers = ['Description', 'Details', 'Amount'];
+  const tableTop = doc.y + 20;
+  const tableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const colWidths = [tableWidth * 0.4, tableWidth * 0.35, tableWidth * 0.25];
 
-  drawTableRow(doc, startY, ['Description', 'Details', 'Amount'], true);
-  let currentY = startY + 25;
+  // Draw header row
+  doc.font('Helvetica-Bold').fontSize(10);
+  drawTableRow(doc, headers, tableTop, colWidths, true);
+  
+  let currentY = tableTop + 25;
+  doc.font('Helvetica').fontSize(10);
 
-  drawTableRow(doc, currentY, [
-    'Room Charges',
-    `${stayDetails.fullDays} days @ ₹${roomDetails.baseRate}/day`,
-    `₹${charges.roomCharges.toFixed(2)}`,
-  ]);
-  currentY += 20;
+  // Room charges
+  const rows = [
+    [
+      'Room Charges',
+      `${stayDetails.fullDays} days @ ₹${roomDetails.baseRate}/day`,
+      `₹${charges.roomCharges.toFixed(2)}`
+    ]
+  ];
 
+  // Add services if any
   if (services?.length > 0) {
-    services.forEach((service) => {
-      checkPageSpace(doc, 30); // Check space for each service entry
-      drawTableRow(doc, currentY, [
+    services.forEach(service => {
+      rows.push([
         service.name,
         `${service.units} x ₹${service.cost}`,
-        `₹${(service.units * service.cost).toFixed(2)}`,
+        `₹${(service.units * service.cost).toFixed(2)}`
       ]);
-      currentY += 20;
     });
   }
 
-  drawTableRow(doc, currentY, [
-    'CGST',
-    `${roomDetails.gstPercentage / 2}%`,
-    `₹${charges.gstBreakdown.cgst.toFixed(2)}`,
-  ]);
-  currentY += 20;
+  // Add GST
+  rows.push(
+    ['CGST', `${roomDetails.gstPercentage / 2}%`, `₹${charges.gstBreakdown.cgst.toFixed(2)}`],
+    ['SGST', `${roomDetails.gstPercentage / 2}%`, `₹${charges.gstBreakdown.sgst.toFixed(2)}`]
+  );
 
-  drawTableRow(doc, currentY, [
-    'SGST',
-    `${roomDetails.gstPercentage / 2}%`,
-    `₹${charges.gstBreakdown.sgst.toFixed(2)}`,
-  ]);
-  currentY += 25;
-
-  doc.font('Helvetica-Bold');
-  drawTableRow(doc, currentY, ['Grand Total', '', `₹${charges.totalAmount.toFixed(2)}`], true);
-}
-
-function drawTableRow(doc, y, columns, isHeader = false) {
-  const width = doc.page.width - 80;
-  const colWidths = [width * 0.4, width * 0.35, width * 0.25];
-  let x = 40;
-
-  if (isHeader) {
-    doc.rect(x, y, width, 20).fill('#f3f4f6');
-  }
-
-  doc.fontSize(10).font(isHeader ? 'Helvetica-Bold' : 'Helvetica');
-
-  columns.forEach((text, i) => {
-    doc.text(text, x + 5, y + 5, {
-      width: colWidths[i] - 10,
-      align: i === columns.length - 1 ? 'right' : 'left',
-    });
-    x += colWidths[i];
+  // Draw all rows
+  rows.forEach((row, i) => {
+    if (currentY + 30 > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage();
+      currentY = doc.page.margins.top + 20;
+      drawTableRow(doc, headers, currentY, colWidths, true);
+      currentY += 25;
+    }
+    drawTableRow(doc, row, currentY, colWidths);
+    currentY += 20;
   });
 
-  doc.rect(40, y, width, 20).stroke();
+  // Draw total
+  doc.font('Helvetica-Bold');
+  currentY += 5;
+  drawTableRow(doc, 
+    ['Total Amount', '', `₹${charges.totalAmount.toFixed(2)}`],
+    currentY,
+    colWidths,
+    true
+  );
 }
 
-function generateGuestDetailsPage(doc, bookingData) {
-  doc.fontSize(16).font('Helvetica-Bold').text('Additional Guest Details', { align: 'center' });
+function drawTableRow(doc, columns, y, colWidths, isHeader = false) {
+  let x = doc.page.margins.left;
 
-  doc.moveDown();
+  // Draw background for header
+  if (isHeader) {
+    doc.fillColor('#f3f4f6')
+       .rect(x, y, sum(colWidths), 20)
+       .fill();
+    doc.fillColor('#000000');
+  }
 
-  bookingData.guestDetails.dependants.forEach((dep, index) => {
-    checkPageSpace(doc, 100);
-    const yStart = doc.y;
-
-    doc.rect(40, yStart, doc.page.width - 80, 80).stroke();
-
-    doc.fontSize(12).font('Helvetica-Bold').text(`Guest ${index + 1}`, 50, yStart + 10);
-
-    doc.fontSize(10).font('Helvetica')
-      .text(`Name: ${dep.name}`, 50, yStart + 30)
-      .text(`Age: ${dep.age}    Gender: ${dep.gender}`, 50, yStart + 45)
-      .text(`Aadhar: ${dep.aadhar}`, 50, yStart + 60);
-
-    doc.y = yStart + 90;
+  // Draw cell borders and text
+  columns.forEach((text, i) => {
+    doc.rect(x, y, colWidths[i], 20).stroke();
+    doc.text(
+      text,
+      x + 5,
+      y + 5,
+      {
+        width: colWidths[i] - 10,
+        align: i === columns.length - 1 ? 'right' : 'left'
+      }
+    );
+    x += colWidths[i];
   });
 }
 
 async function appendDocuments(doc, bookingData) {
   const allFiles = [
     ...(bookingData.guestDetails.uploads || []),
-    ...(bookingData.guestDetails.dependants || []).flatMap((dep) => dep.uploads || []),
+    ...(bookingData.guestDetails.dependants || [])
+      .flatMap(dep => dep.uploads || [])
   ];
 
-  let processedFiles = [];
-  let failedFiles = [];
+  let currentY = doc.y + 20;
+  const maxHeight = 300;
+  const margin = 50;
 
   for (const filePath of allFiles) {
     try {
       if (!fs.existsSync(filePath)) {
-        failedFiles.push({ path: filePath, reason: 'File not found' });
+        console.warn(`File not found: ${filePath}`);
         continue;
       }
 
-      checkPageSpace(doc, 300);
-      const ext = filePath.toLowerCase().split('.').pop();
-
-      if (['jpg', 'jpeg', 'png'].includes(ext)) {
-        doc.image(filePath, { fit: [500, 700], align: 'center', valign: 'center' });
-        processedFiles.push(filePath);
-      } else if (ext === 'pdf') {
-        const pdfBytes = fs.readFileSync(filePath);
-        doc.image(pdfBytes, { fit: [500, 700], align: 'center', valign: 'center' });
-        processedFiles.push(filePath);
+      // Check if we need a new page
+      if (currentY + maxHeight > doc.page.height - margin) {
+        doc.addPage();
+        currentY = doc.page.margins.top;
       }
+
+      const stats = fs.statSync(filePath);
+      const fileSizeInMB = stats.size / (1024 * 1024);
+      
+      // Skip large files to prevent memory issues
+      if (fileSizeInMB > 5) {
+        console.warn(`File too large (${fileSizeInMB.toFixed(2)}MB): ${filePath}`);
+        continue;
+      }
+
+      const ext = path.extname(filePath).toLowerCase();
+      
+      if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+        doc.image(filePath, {
+          fit: [500, maxHeight],
+          align: 'center',
+          y: currentY
+        });
+        currentY += maxHeight + margin;
+      }
+      
     } catch (error) {
-      failedFiles.push({ path: filePath, reason: error.message });
+      console.error(`Error processing file ${filePath}:`, error);
     }
   }
-
-  return { processedFiles, failedFiles };
 }
 
-function addFooter(doc, hotelName) {
-  const pageNumber = doc.bufferedPageRange().count;
-  doc.fontSize(8).text(`${hotelName} - Page ${pageNumber}`, 40, doc.page.height - 30, { align: 'center' });
+function sum(array) {
+  return array.reduce((a, b) => a + b, 0);
 }
 
-function checkPageSpace(doc, requiredSpace = 50) {
-  if (doc.y + requiredSpace > doc.page.height - doc.page.margins.bottom) {
-    doc.addPage();
-  }
-}
