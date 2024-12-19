@@ -40,6 +40,4 @@ contextBridge.exposeInMainWorld('electron', {
   saveBooking: (data) => ipcRenderer.invoke('save-booking', data),
   generatePdf: (data) => ipcRenderer.invoke('generate-pdf', data),
   showNotification: (options) => ipcRenderer.invoke('show-notification', options),
-
-
 });
