@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import models from './models';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -15,6 +16,7 @@ class ConnectionManager {
         try {
             if (!this.masterConnection) {
                 this.masterConnection = await mongoose.createConnection(process.env.MASTER_DB_URI);
+                models.initializeMasterModels(this.masterConnection);
                 console.log('Connected to Master DB');
             }
             return this.masterConnection;
@@ -72,6 +74,7 @@ async validateAndGetOrgUri() {
             }
 
             this.orgConnection = await mongoose.createConnection(orgDbUri);
+            models.initializeOrgModels(this.orgConnection);
             console.log('Connected to Org DB');
             return this.orgConnection;
         } catch (error) {

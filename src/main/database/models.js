@@ -1,38 +1,50 @@
-import schemas from './schemas/index';
+import schemas from './schemas/index'
 
 class Models {
-    constructor() {
-        this.masterModels = null;
-        this.orgModels = null;
-    }
+  constructor() {
+    this.masterModels = null
+    this.orgModels = null
+  }
 
-    initializeMasterModels(connection) {
-        this.masterModels = {
-            organizations: connection.model('organizations', schemas.organizations)
-        };
+  initializeMasterModels(connection) {
+    console.log('Initializing master models...')
+    this.masterModels = {
+      Organization: connection.model('organizations', schemas.organizations)
     }
+    console.log('Master models initialized')
+  }
 
-    initializeOrgModels(connection) {
-        this.orgModels = {
-            User: connection.model('User', schemas.user),
-            Category: connection.model('Category', schemas.category),
-            Space: connection.model('Space', schemas.space),
-            PrimaryGuest: connection.model('PrimaryGuest', schemas.primaryGuest),
-            AdditionalGuest: connection.model('AdditionalGuest', schemas.additionalGuest),
-            Service: connection.model('Service', schemas.service),
-            Booking: connection.model('Booking', schemas.booking),
-            Invoice: connection.model('Invoice', schemas.invoice)
-        };
+  initializeOrgModels(connection) {
+    console.log('Initializing org models...')
+    this.orgModels = {
+      User: connection.model('users', schemas.users),
+      Category: connection.model('Category', schemas.category),
+      Space: connection.model('Space', schemas.space),
+      PrimaryGuest: connection.model('PrimaryGuest', schemas.primaryGuest),
+      AdditionalGuest: connection.model('AdditionalGuest', schemas.additionalGuest),
+      Service: connection.model('Service', schemas.service),
+      Booking: connection.model('Booking', schemas.booking),
+      Invoice: connection.model('Invoice', schemas.invoice)
     }
+    console.log('Org models initialized')
+  }
 
-    getMasterModels() {
-        return this.masterModels;
+  getMasterModels() {
+    if (!this.masterModels) {
+      console.error('Master models not initialized')
+      return null
     }
+    return this.masterModels
+  }
 
-    getOrgModels() {
-        return this.orgModels;
+  getOrgModels() {
+    if (!this.orgModels) {
+      console.error('Org models not initialized')
+      return null
     }
+    return this.orgModels
+  }
 }
 
-const models = new Models();
-export default models;
+const models = new Models()
+export default models

@@ -3,6 +3,10 @@ import models from './models';
 
 async function initializeOrgData() {
   try {
+    const orgModels = models.getOrgModels();
+    if (!orgModels) {
+      throw new Error('Org models not initialized properly');
+    }
     // Get all models
     const { 
       User, 
@@ -13,7 +17,7 @@ async function initializeOrgData() {
       Service,
       Booking,
       Invoice 
-    } = models.getOrgModels();
+    } = orgModels;
 
     // Check and create admin user if doesn't exist
 const adminExists = await User.findOne({ role: 'ADMIN' });

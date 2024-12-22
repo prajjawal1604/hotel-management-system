@@ -3,6 +3,8 @@ import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { initializeDatabases } from './database/dbInit';
+import connectionManager from './database/connectionManager';
+import models from './database/models';
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -131,7 +133,7 @@ ipcMain.handle('login', async (_, credentials) => {
 
     return {
       success: true,
-      username: user.username,
+      username: users.username,
       role: user.role,
       subscriptionWarning,
       orgDetails: {

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Shield, Eye, EyeOff, Loader } from 'lucide-react';
-import { useStore } from '../store/useStore';
-import { useRoomsStore } from '../store/roomsStore';
+import { useStore } from '../../store/useStore';
+import { useRoomsStore } from '../../store/roomsStore';
 
 const LoginPage = () => {
   const navigate = useNavigate();
