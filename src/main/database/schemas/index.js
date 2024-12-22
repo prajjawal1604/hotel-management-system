@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 // Organization Schema (Master DB)
 const organizationSchema = new mongoose.Schema({
@@ -89,14 +89,26 @@ const invoiceSchema = new mongoose.Schema({
     paymentDate: Date
 });
 
-module.exports = {
-    organization: organizationSchema,
-    user: userSchema,
-    category: categorySchema,
-    space: spaceSchema,
-    primaryGuest: primaryGuestSchema,
-    additionalGuest: additionalGuestSchema,
-    service: serviceSchema,
-    booking: bookingSchema,
-    invoice: invoiceSchema
+// default export
+
+const Organization = mongoose.model('Organization', organizationSchema);
+const User = mongoose.model('User', userSchema);
+const Category = mongoose.model('Category', categorySchema);
+const Space = mongoose.model('Space', spaceSchema);
+const PrimaryGuest = mongoose.model('PrimaryGuest', primaryGuestSchema);
+const AdditionalGuest = mongoose.model('AdditionalGuest', additionalGuestSchema);
+const Service = mongoose.model('Service', serviceSchema);
+const Booking = mongoose.model('Booking', bookingSchema);
+const Invoice = mongoose.model('Invoice', invoiceSchema);
+
+export default {
+    Organization,
+    User,
+    Category,
+    Space,
+    PrimaryGuest,
+    AdditionalGuest,
+    Service,
+    Booking,
+    Invoice
 };

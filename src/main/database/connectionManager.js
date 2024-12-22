@@ -1,11 +1,13 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class ConnectionManager {
     constructor() {
         this.masterConnection = null;
         this.orgConnection = null;
-        this.orgId = process.env.ORG_ID;
+        this.orgName = process.env.ORG_NAME;
     }
 
     // Connect to master DB
@@ -23,37 +25,46 @@ class ConnectionManager {
     }
 
     // Validate org and get connection URI
-    async validateAndGetOrgUri(orgId) {
-        try {
-            const Organization = this.masterConnection.model('Organization', new mongoose.Schema({
-                orgname: String,
-                subscriptionEndDate: Date,
-                subscribedOn: Date,
-                orgDbUri: String,
-                email: String,
-                gstNumber: String,
-                gst: String
-            }));
+    // Validate org and get connection URI (Hardcoded orgName)
+async validateAndGetOrgUri() {
+    try {
+        console.log(`Searching for organization: "Maa Mangala Residency"`);
 
-            const org = await Organization.findById(orgId);
-            if (!org) throw new Error('Organization not found');
-
-            // Check subscription validity
-            if (new Date(org.subscriptionEndDate) < new Date()) {
-                throw new Error('Subscription expired');
-            }
-
-            return org.orgDbUri;
-        } catch (error) {
-            console.error('Org Validation Error:', error);
-            throw error;
+        // Ensure the master connection exists
+        if (!this.masterConnection) {
+            throw new Error("Master DB connection is not initialized. Call connectToMaster first.");
         }
+
+        // Get master database explicitly
+        const masterDb = this.masterConnection.useDb('master');
+
+        // Get organizations collection
+        const organizations = masterDb.collection('organizations');
+
+        // Hardcoded organization name for now
+        const org = await organizations.findOne({ orgName: "Maa Mangala Residency" }); // Match exact field name and value
+        console.log('Query result:', org);
+
+        if (!org) {
+            throw new Error(`Organization not found: "Maa Mangala Residency"`);
+        }
+
+        if (!org.orgDbUri) {
+            throw new Error(`Organization URI not found for: "Maa Mangala Residency"`);
+        }
+
+        return org.orgDbUri; // Return the database URI
+    } catch (error) {
+        console.error('Org Validation Error:', error.message);
+        throw error;
     }
+}
+
 
     // Connect to org DB
     async connectToOrg() {
         try {
-            const orgDbUri = await this.validateAndGetOrgUri(this.orgId);
+            const orgDbUri = await this.validateAndGetOrgUri(this.orgName);
             
             // Close existing org connection if any
             if (this.orgConnection) {
@@ -89,4 +100,4 @@ class ConnectionManager {
 
 // Export a singleton instance
 const connectionManager = new ConnectionManager();
-module.exports = connectionManager;
+export default connectionManager;

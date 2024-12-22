@@ -1,49 +1,54 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Shield, Eye, EyeOff, Loader } from 'lucide-react';
+import { useStore } from '../store/useStore';
+import { useRoomsStore } from '../store/roomsStore';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState('front-office');
+  const setAuth = useStore(state => state.setAuth);
+  
+  const [selectedRole, setSelectedRole] = useState('FRONT_OFFICE');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: ''
   });
 
   const [errors, setErrors] = useState({
-    email: '',
+    identifier: '',
     password: '',
     general: ''
   });
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       setIsLoading(false);
-      setErrors({ email: '', password: '', general: '' });
+      setErrors({ identifier: '', password: '', general: '' });
     };
   }, []);
 
   const validateForm = () => {
     let isValid = true;
-    const newErrors = { email: '', password: '', general: '' };
+    const newErrors = { identifier: '', password: '', general: '' };
 
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
+    if (!formData.identifier.trim()) {
+      newErrors.identifier = 'Username or email is required';
       isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
-      isValid = false;
+    }
+
+    if (formData.identifier.includes('@')) {
+      const emailRegex = /\S+@\S+\.\S+/;
+      if (!emailRegex.test(formData.identifier)) {
+        newErrors.identifier = 'Please enter a valid email';
+        isValid = false;
+      }
     }
 
     if (!formData.password) {
       newErrors.password = 'Password is required';
-      isValid = false;
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
       isValid = false;
     }
 
@@ -53,24 +58,58 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrors({ email: '', password: '', general: '' });
+    setErrors({ identifier: '', password: '', general: '' });
   
     if (!validateForm()) return;
   
     setIsLoading(true);
     
     try {  
+      const isEmail = formData.identifier.includes('@');
+      
       const result = await window.electron.login({
-        email: formData.email,
+        [isEmail ? 'email' : 'username']: formData.identifier,
         password: formData.password,
         role: selectedRole
       });
-
+  
+      if (result.subscriptionExpired) {
+        setErrors({
+          ...errors,
+          general: 'Your subscription has expired. Please contact administrator to continue.'
+        });
+        return;
+      }
+  
       if (result.success) {        
-        if (result.warning) {
-          alert(result.warning);
+        if (result.subscriptionWarning) {
+          alert(result.subscriptionWarning);
         }
-        navigate(`/dashboard/${selectedRole}`, { replace: true });
+  
+        // Update auth store
+        setAuth({
+          isAuthenticated: true,
+          userRole: selectedRole,
+          userData: {
+            username: result.username
+          },
+          orgDetails: result.orgDetails
+        });
+  
+        // Initialize rooms store
+        const {
+          setSpaces,
+          setCategories,
+          setStats
+        } = useRoomsStore.getState(); // Get action functions
+  
+        // Get initial room data
+        const roomData = await window.electron.getRoomData();
+        setSpaces(roomData.spaces);
+        setCategories(roomData.categories);
+        setStats(roomData.stats);
+        
+        navigate('/dashboard', { replace: true });
       } else {
         setErrors({
           ...errors,
@@ -117,9 +156,9 @@ const LoginPage = () => {
           <button
             type="button"
             disabled={isLoading}
-            onClick={() => setSelectedRole('front-office')}
+            onClick={() => setSelectedRole('FRONT_OFFICE')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md transition-colors
-              ${selectedRole === 'front-office' 
+              ${selectedRole === 'FRONT_OFFICE' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-white text-gray-700 border border-gray-300'}
               ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'}`}
@@ -130,9 +169,9 @@ const LoginPage = () => {
           <button
             type="button"
             disabled={isLoading}
-            onClick={() => setSelectedRole('admin')}
+            onClick={() => setSelectedRole('ADMIN')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md transition-colors
-              ${selectedRole === 'admin' 
+              ${selectedRole === 'ADMIN' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-white text-gray-700 border border-gray-300'}
               ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-opacity-90'}`}
@@ -145,27 +184,20 @@ const LoginPage = () => {
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Username or Email
             </label>
             <input
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange('email')}
-              onBlur={() => {
-                if (!formData.email) {
-                  setErrors(prev => ({ ...prev, email: 'Email is required' }));
-                } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-                  setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
-                }
-              }}
+              type="text"
+              value={formData.identifier}
+              onChange={handleInputChange('identifier')}
               disabled={isLoading}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
-                ${errors.email ? 'border-red-500' : 'border-gray-300'}
+                ${errors.identifier ? 'border-red-500' : 'border-gray-300'}
                 ${isLoading ? 'bg-gray-100' : 'bg-white'}`}
-              placeholder="Enter your email"
+              placeholder="Enter your username or email"
             />
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+            {errors.identifier && (
+              <p className="mt-1 text-sm text-red-600">{errors.identifier}</p>
             )}
           </div>
 
@@ -178,13 +210,6 @@ const LoginPage = () => {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleInputChange('password')}
-                onBlur={() => {
-                  if (!formData.password) {
-                    setErrors(prev => ({ ...prev, password: 'Password is required' }));
-                  } else if (formData.password.length < 6) {
-                    setErrors(prev => ({ ...prev, password: 'Password must be at least 6 characters' }));
-                  }
-                }}
                 disabled={isLoading}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${errors.password ? 'border-red-500' : 'border-gray-300'}

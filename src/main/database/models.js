@@ -1,4 +1,4 @@
-const schemas = require('./schemas');
+import schemas from './schemas/index';
 
 class Models {
     constructor() {
@@ -8,7 +8,7 @@ class Models {
 
     initializeMasterModels(connection) {
         this.masterModels = {
-            Organization: connection.model('Organization', schemas.organization)
+            organizations: connection.model('organizations', schemas.organizations)
         };
     }
 
@@ -35,4 +35,4 @@ class Models {
 }
 
 const models = new Models();
-module.exports = models;
+export default models;

@@ -1,59 +1,50 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
+import { useStore } from '../../store/useStore';
 import Logo from '../../assets/images/logo/logoTextBlack.png';
 
 const Header = () => {
   const navigate = useNavigate();
-  const [appState, setAppState] = useState({
-    auth: { isAuthenticated: false, role: null }
-  });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  const { 
+    auth: { isAuthenticated, userRole },
+    logout 
+  } = useStore();
 
-  // Initialize state and set up state update listener
-  useEffect(() => {
-    const initState = async () => {
-      try {
-        const state = await window.electron.getState();
-        setAppState(state);
-      } catch (error) {
-        console.error('Failed to initialize state:', error);
-      }
-    };
-    initState();
-
-    const unsubscribe = window.electron.onStateUpdate((newState) => {
-      setAppState(newState);
-      if (!newState.auth.isAuthenticated && window.location.pathname !== '/') {
+  const handleLogout = async () => {
+    try {
+      // Using the directly exposed logout function
+      const result = await window.electron.logout();
+      if (result.success) {
+        logout(); // Clear Zustand store
         navigate('/', { replace: true });
+      } else {
+        console.error('Logout failed:', result.message);
       }
-    });
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
-    return () => unsubscribe();
-  }, [navigate]);
-
-  const handleLogout = useCallback(() => {
-    window.electron.logout();
-  }, []);
-
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = async () => {
     if (isRefreshing) return;
 
     try {
       setIsRefreshing(true);
-      // Use forceRefresh instead of resetAndRefresh for immediate update
-      const result = await window.electron.forceRefresh();
+      // Using the directly exposed refreshData function
+      const result = await window.electron.refreshData();
       
       if (!result.success) {
         throw new Error(result.message || 'Refresh failed');
       }
     } catch (error) {
       console.error('Refresh failed:', error);
-      // Optionally show error to user via toast/alert
     } finally {
       setIsRefreshing(false);
     }
-  }, [isRefreshing]);
+  };
 
   return (
     <header className="bg-white shadow-lg">
@@ -64,11 +55,11 @@ const Header = () => {
           </div>
           
           <div className="flex items-center gap-4">
-            {appState.auth.isAuthenticated && (
+            {isAuthenticated && (
               <>
-                {appState.auth.role && (
+                {userRole && (
                   <span className="text-gray-600 font-medium">
-                    Role: {appState.auth.role.charAt(0).toUpperCase() + appState.auth.role.slice(1)}
+                    Role: {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                   </span>
                 )}
 

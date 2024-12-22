@@ -1,43 +1,27 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electron', {
-  // State Management
-  getState: () => ipcRenderer.invoke('get-state'),
-  onStateUpdate: (callback) => {
-    const subscription = (_, state) => callback(state);
-    ipcRenderer.on('state-update', subscription);
-    return () => ipcRenderer.removeListener('state-update', subscription);
-  },
+  // Auth
+  login: async (credentials) => await ipcRenderer.invoke('login', credentials),
+  logout: async () => await ipcRenderer.invoke('logout'),
+  
+  // Room Data
+  getRoomData: async () => await ipcRenderer.invoke('get-room-data'),
+  updateRoom: async (data) => await ipcRenderer.invoke('update-room', data),
+  
+  // Categories
+  getCategories: async () => await ipcRenderer.invoke('get-categories'),
+  addCategory: async (data) => await ipcRenderer.invoke('add-category', data),
+  updateCategory: async (data) => await ipcRenderer.invoke('update-category', data),
+  deleteCategory: async (id) => await ipcRenderer.invoke('delete-category', id),
+  
+  // Spaces
+  addSpace: async (data) => await ipcRenderer.invoke('add-space', data),
+  deleteSpace: async (id) => await ipcRenderer.invoke('delete-space', id),
+  
+  // Refresh
+  refreshData: async () => await ipcRenderer.invoke('refresh-data'),
 
-  // Authentication
-  login: (credentials) => ipcRenderer.invoke('login', credentials),
-  logout: () => ipcRenderer.invoke('logout'),
-
-  // Room Management
-  getRooms: () => ipcRenderer.invoke('get-rooms'),
-  getRoomStats: () => ipcRenderer.invoke('get-room-stats'),
-  updateRoom: (data) => ipcRenderer.invoke('updateRoom', data),
-
-  // Category Management
-  addCategory: (data) => ipcRenderer.invoke('addCategory', data),
-  updateCategory: (data) => ipcRenderer.invoke('updateCategory', data),
-  deleteCategory: (name) => ipcRenderer.invoke('deleteCategory', name),
-
-  // Space Management
-  addSpace: (data) => ipcRenderer.invoke('addSpace', data),
-  deleteSpace: (data) => ipcRenderer.invoke('deleteSpace', data),
-
-  // Revenue Management
-  getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats'),
-
-  // State Refresh
-  resetAndRefresh: () => ipcRenderer.invoke('reset-and-refresh'),
-  forceRefresh: () => ipcRenderer.invoke('force-refresh'),
-
-  calculateCheckout: (roomName) => ipcRenderer.invoke('calculate-checkout', roomName),
-  checkoutRoom: (roomName) => ipcRenderer.invoke('checkout-room', roomName),
-
-  saveBooking: (data) => ipcRenderer.invoke('save-booking', data),
-  generatePdf: (data) => ipcRenderer.invoke('generate-pdf', data),
-  showNotification: (options) => ipcRenderer.invoke('show-notification', options),
-});
+  // Revenue
+  getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats')
+})

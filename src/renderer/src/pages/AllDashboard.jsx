@@ -8,7 +8,7 @@ import GuestDetailsModal from './modals/GuestDetailsModal';
 import CategoryModal from './modals/CategoryModal';
 import AddSpaceModal from './modals/AddSpaceModal';
 import ConfirmationModal from './modals/ConfirmationModal';
-import RevenueStats from './RevenueStats';
+import RevenueStats from './components/RevenueStats';
 import CategoryEditModal from './modals/CategoryEditModal';
 import RoomOperationsModal from './modals/RoomOperationsModal';
 
