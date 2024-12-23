@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 // Organization Schema (Master DB)
 const organizationSchema = new mongoose.Schema({
-    orgname: String,
+    orgName: String,
     subscriptionEndDate: Date,
     subscribedOn: Date,
     orgDbUri: String,

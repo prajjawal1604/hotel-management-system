@@ -64,11 +64,9 @@ const LoginPage = () => {
   
     setIsLoading(true);
     
-    try {  
-      const isEmail = formData.identifier.includes('@');
-      
+    try {        
       const result = await window.electron.login({
-        [isEmail ? 'email' : 'username']: formData.identifier,
+        identifier: formData.identifier,
         password: formData.password,
         role: selectedRole
       });

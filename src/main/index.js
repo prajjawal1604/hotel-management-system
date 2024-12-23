@@ -76,42 +76,51 @@ ipcMain.handle('check-connection-status', async () => {
 
 ipcMain.handle('login', async (_, credentials) => {
   try {
+    console.log('Received credentials:', credentials);
     const { identifier, password, role } = credentials;
+
+    // Validate credentials
+    if (!identifier || !password || !role) {
+      return {
+        success: false,
+        message: 'Missing credentials'
+      };
+    }
+
     const isEmail = identifier.includes('@');
 
-    // Get the connected orgDB
-    const orgConnection = connectionManager.getOrgConnection();
+    // First validate user
     const { User } = models.getOrgModels();
-
-    // Check user credentials
     const query = isEmail 
       ? { email: identifier, role } 
       : { username: identifier, role };
     
     const user = await User.findOne(query);
 
-    if (!user) {
+    if (!user || user.password !== password) {
       return {
         success: false,
         message: 'Invalid credentials'
       };
     }
 
-    // Check password
-    if (user.password !== password) {
-      return {
-        success: false,
-        message: 'Invalid credentials'
-      };
-    }
-
-    // Get organization details for subscription check
-    const masterConnection = connectionManager.getMasterConnection();
+    // Then check organization subscription
     const { Organization } = models.getMasterModels();
     
-    const org = await Organization.findById(process.env.ORG_ID);
+    // Find organization (without using ID since we only have one)
+    const org = await Organization.findOne();
     
-    // Check if subscription is expired
+    if (!org) {
+      console.error('No organization found in master database');
+      return {
+        success: false,
+        message: 'Organization configuration not found'
+      };
+    }
+
+    console.log('Found organization:', org); // Debug log
+
+    // Check subscription
     const currentDate = new Date();
     const subscriptionEndDate = new Date(org.subscriptionEndDate);
     
@@ -123,7 +132,6 @@ ipcMain.handle('login', async (_, credentials) => {
       };
     }
 
-    // Check if subscription is ending soon (30 days)
     const daysUntilExpiry = Math.ceil((subscriptionEndDate - currentDate) / (1000 * 60 * 60 * 24));
     let subscriptionWarning = null;
 
@@ -133,7 +141,7 @@ ipcMain.handle('login', async (_, credentials) => {
 
     return {
       success: true,
-      username: users.username,
+      username: user.username,
       role: user.role,
       subscriptionWarning,
       orgDetails: {

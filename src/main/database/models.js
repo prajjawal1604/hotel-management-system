@@ -18,13 +18,13 @@ class Models {
     console.log('Initializing org models...')
     this.orgModels = {
       User: connection.model('users', schemas.users),
-      Category: connection.model('Category', schemas.category),
-      Space: connection.model('Space', schemas.space),
-      PrimaryGuest: connection.model('PrimaryGuest', schemas.primaryGuest),
-      AdditionalGuest: connection.model('AdditionalGuest', schemas.additionalGuest),
-      Service: connection.model('Service', schemas.service),
-      Booking: connection.model('Booking', schemas.booking),
-      Invoice: connection.model('Invoice', schemas.invoice)
+        Category: connection.model('categories', schemas.category),
+        Space: connection.model('spaces', schemas.space),
+        PrimaryGuest: connection.model('primary_guests', schemas.primaryGuest),
+        AdditionalGuest: connection.model('additional_guests', schemas.additionalGuest),
+        Service: connection.model('services', schemas.service),
+        Booking: connection.model('bookings', schemas.booking),
+        Invoice: connection.model('invoices', schemas.invoice)
     }
     console.log('Org models initialized')
   }
