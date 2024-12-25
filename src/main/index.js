@@ -34,7 +34,6 @@ function createWindow() {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
-
 // Initialization
 app.whenReady().then(async () => {
   try {
