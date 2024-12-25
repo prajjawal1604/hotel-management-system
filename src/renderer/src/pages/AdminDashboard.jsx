@@ -1,5 +1,6 @@
 import RevenueStats from './components/RevenueStats';
 import QuickStats from './components/QuickStats';
+import RoomStatusLegend from './components/RoomStatusLegend.jsx';
 
 const AdminDashboard = () => {
   return (
@@ -7,8 +8,8 @@ const AdminDashboard = () => {
       <div className="space-y-6 p-6">
         <RevenueStats />
         <QuickStats />
-        {/* <SearchAndFilters />
-        <RoomStatusLegend /> */}
+        {/* <SearchAndFilters /> */}
+        <RoomStatusLegend />
       </div>
     </div>
   )
