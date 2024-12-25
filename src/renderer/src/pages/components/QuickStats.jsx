@@ -28,12 +28,12 @@ const QuickStats = () => {
 
   const statCards = [
     { 
-      label: 'Available Rooms', 
+      label: 'Available Spaces', 
       value: computedStats.available, 
       color: 'text-green-600' 
     },
     { 
-      label: 'Occupied Rooms', 
+      label: 'Occupied Spaces', 
       value: computedStats.occupied,
       color: 'text-red-600' 
     },

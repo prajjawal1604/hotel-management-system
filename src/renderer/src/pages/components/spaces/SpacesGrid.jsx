@@ -6,18 +6,22 @@ import SpaceCard from './SpaceCard';
 const SpacesGrid = () => {
   const spaces = useRoomsStore(state => state.spaces);
   const categories = useRoomsStore(state => state.categories);
-  console.log('%cSpacesGrid rendering with:', 'color: blue; font-weight: bold;', { spaces, categories }); // Debug log
+  console.log('SpacesGrid rendering with:', { spaces, categories }); // Debug log
 
   // Add loading state
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (spaces.length > 0 || categories.length > 0) {
+
+    if (Array.isArray(spaces) && Array.isArray(categories)) {
       setIsLoading(false);
     }
   }, [spaces, categories]);
 
-  if (isLoading) {
+  
+
+    // Show loading until we have data
+  if (isLoading || !spaces || !categories) {
     return (
       <div className="flex justify-center items-center h-48">
         <p>Loading spaces...</p>
@@ -25,14 +29,27 @@ const SpacesGrid = () => {
     );
   }
 
+  console.log('Data received:', {
+    spacesLength: spaces.length,
+    categoriesLength: categories.length,
+    sampleSpace: spaces[0],
+    sampleCategory: categories[0]
+  });
+
   // Group spaces by category
   const spacesByCategory = categories.map(category => ({
     category,
-    spaces: spaces.filter(space => 
-      space.categoryId.toString() === category._id.toString()
-    ) || []
-  }));
-  
+    spaces: spaces.filter(space => {
+      const spaceId = space.categoryId?._id?.buffer;
+      const categoryId = category._id?.buffer;
+      if (!spaceId || !categoryId) return false;
+      
+      // Compare buffer values
+      return Object.keys(spaceId).every(key => 
+        spaceId[key] === categoryId[key]
+      );
+    })
+  }));  
 
   return (
     <div className="space-y-6">

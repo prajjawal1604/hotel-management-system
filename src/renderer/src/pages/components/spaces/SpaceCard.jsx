@@ -50,9 +50,9 @@ const STATUS_COLORS = {
         )}
         
         {/* Max Occupancy */}
-        <div className="mt-2 text-sm">
+        {/* <div className="mt-2 text-sm">
           <p>Max Occupancy: {space.maxOccupancy.adults} Adults, {space.maxOccupancy.kids} Kids</p>
-        </div>
+        </div> */}
       </div>
     );
   };

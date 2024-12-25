@@ -17,16 +17,15 @@ const RoomStatusLegend = () => {
           text: '#991b1b',
           className: 'bg-red-100 text-red-800'
         },
-        [ROOM_STATUSES.MAINTENANCE]: {
-          bg: '#f3f4f6',
-          text: '#1f2937',
-          className: 'bg-gray-100 text-gray-800'
-        },
         [ROOM_STATUSES.CHECKOUT_PENDING]: {
           bg: '#fef3c7',
           text: '#92400e',
           className: 'bg-yellow-100 text-yellow-800'
-        }
+        },[ROOM_STATUSES.MAINTENANCE]: {
+            bg: '#f3f4f6',
+            text: '#1f2937',
+            className: 'bg-gray-100 text-gray-800'
+          }
       };
     return (
       <div className="bg-white p-4 rounded-lg shadow-sm">
