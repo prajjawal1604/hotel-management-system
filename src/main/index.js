@@ -192,10 +192,12 @@ ipcMain.handle('get-room-data', async () => {
     }).lean(); // Use lean() for better performance
     
     console.log(`Found ${spacesDoc.length} spaces`);
+    console.log(spacesDoc);
 
     // Fetch categories
     const categoriesDoc = await Category.find().lean();
     console.log(`Found ${categoriesDoc.length} categories`);
+    console.log(categoriesDoc);
 
     // Calculate stats
     const stats = {

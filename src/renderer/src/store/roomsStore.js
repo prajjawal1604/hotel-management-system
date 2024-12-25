@@ -19,13 +19,14 @@ export const useRoomsStore = create((set) => ({
     monthlyRevenue: 0
   },
 
-
   setRevenueStats: (stats) => set((state) => ({
     revenueStats: { ...state.revenueStats, ...stats }
-  }))
-,
+  })),
   // Actions
-  setSpaces: (spaces) => set({ spaces }),
+  setSpaces: (spaces) => {
+    console.log('Store Spaces:', spaces);
+    set({ spaces });
+  },
   setCategories: (categories) => set({ categories }),
   setStats: (stats) => set({ stats }),
   setFilters: (filters) => set((state) => ({
@@ -39,6 +40,4 @@ export const useRoomsStore = create((set) => ({
       sort: 'default'
     }
   })
-
- 
 })); 
