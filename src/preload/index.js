@@ -19,9 +19,6 @@ contextBridge.exposeInMainWorld('electron', {
   addSpace: async (data) => await ipcRenderer.invoke('add-space', data),
   deleteSpace: async (id) => await ipcRenderer.invoke('delete-space', id),
   
-  // Refresh
-  refreshData: async () => await ipcRenderer.invoke('refresh-data'),
-
   // Revenue
   getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats')
 })

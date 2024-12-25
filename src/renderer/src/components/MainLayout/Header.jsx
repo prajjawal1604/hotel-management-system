@@ -34,11 +34,17 @@ const Header = () => {
     try {
       setIsRefreshing(true);
       // Using the directly exposed refreshData function
-      const result = await window.electron.refreshData();
+      const result = await window.electron.getRoomData();
       
       if (!result.success) {
         throw new Error(result.message || 'Refresh failed');
       }
+
+      if (result.success) {
+      setSpaces(result.data.spaces);
+      setCategories(result.data.categories);
+      setStats(result.data.stats);
+    }
     } catch (error) {
       console.error('Refresh failed:', error);
     } finally {

@@ -175,59 +175,68 @@ ipcMain.handle('logout', async () => {
   }
 });
 
-ipcMain.handle('refresh-data', async () => {
-  try {
-    const { Space, Category } = models.getOrgModels();
-
-    // Get fresh data
-    const spaces = await Space.find().populate('categoryId');
-    const categories = await Category.find();
-
-    // Calculate basic stats from actual database states
-    const stats = {
-      available: spaces.filter(space => space.currentStatus === 'AVAILABLE').length,
-      occupied: spaces.filter(space => space.currentStatus === 'OCCUPIED').length,
-      maintenance: spaces.filter(space => space.currentStatus === 'MAINTENANCE').length
-    };
-
-    return {
-      success: true,
-      data: {
-        spaces,
-        categories,
-        stats
-      }
-    };
-  } catch (error) {
-    console.error('Refresh error:', error);
-    return {
-      success: false,
-      message: 'Failed to refresh data'
-    };
-  }
-});
-
-// Get Room Data (similar to refresh-data but as a separate handler)
 ipcMain.handle('get-room-data', async () => {
   try {
     const { Space, Category } = models.getOrgModels();
     
-    const spaces = await Space.find().populate('categoryId');
-    const categories = await Category.find();
+    if (!Space || !Category) {
+      throw new Error('Models not properly initialized');
+    }
 
+    console.log('Starting to fetch room data...');
+    
+    // Fetch spaces with populated category data
+    const spacesDoc = await Space.find().populate({
+      path: 'categoryId',
+      model: 'categories'
+    }).lean(); // Use lean() for better performance
+    
+    console.log(`Found ${spacesDoc.length} spaces`);
+
+    // Fetch categories
+    const categoriesDoc = await Category.find().lean();
+    console.log(`Found ${categoriesDoc.length} categories`);
+
+    // Calculate stats
     const stats = {
-      available: spaces.filter(space => space.currentStatus === 'AVAILABLE').length,
-      occupied: spaces.filter(space => space.currentStatus === 'OCCUPIED').length,
-      maintenance: spaces.filter(space => space.currentStatus === 'MAINTENANCE').length
+      available: spacesDoc.filter(space => space.currentStatus === 'AVAILABLE').length,
+      occupied: spacesDoc.filter(space => space.currentStatus === 'OCCUPIED').length,
+      maintenance: spacesDoc.filter(space => space.currentStatus === 'MAINTENANCE').length
     };
+
+    console.log('Room Statistics:', {
+      total: spacesDoc.length,
+      ...stats
+    });
+
+    // Log first space as sample (if exists)
+    if (spacesDoc.length > 0) {
+      console.log('Sample space data:', {
+        space: spacesDoc[0],
+        status: spacesDoc[0].currentStatus
+      });
+    }
 
     return {
       success: true,
-      data: { spaces, categories, stats }
+      data: { 
+        spaces: spacesDoc,      // lean() already returns plain objects
+        categories: categoriesDoc,
+        stats
+      }
     };
   } catch (error) {
     console.error('Get room data error:', error);
-    return { success: false, message: 'Failed to fetch room data' };
+    return { 
+      success: false, 
+      message: 'Failed to fetch room data',
+      error: error.message,
+      // Include error details for debugging
+      errorDetails: {
+        name: error.name,
+        stack: error.stack
+      }
+    };
   }
 });
 
@@ -398,16 +407,16 @@ ipcMain.handle('get-revenue-stats', async () => {
   try {
     const { Invoice } = models.getOrgModels();
     
-    // Get current date ranges
+    // Get date ranges
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+    weekStart.setDate(today.getDate() - 7);
     
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    // Aggregate revenue for different periods
+    // Aggregate daily revenue
     const dailyRevenue = await Invoice.aggregate([
       {
         $match: {
@@ -422,6 +431,7 @@ ipcMain.handle('get-revenue-stats', async () => {
       }
     ]);
 
+    // Aggregate weekly revenue
     const weeklyRevenue = await Invoice.aggregate([
       {
         $match: {
@@ -436,6 +446,7 @@ ipcMain.handle('get-revenue-stats', async () => {
       }
     ]);
 
+    // Aggregate monthly revenue
     const monthlyRevenue = await Invoice.aggregate([
       {
         $match: {
@@ -458,11 +469,17 @@ ipcMain.handle('get-revenue-stats', async () => {
         monthlyRevenue: monthlyRevenue[0]?.total || 0
       }
     };
+
   } catch (error) {
     console.error('Revenue stats error:', error);
-    return { 
-      success: false, 
-      message: 'Failed to fetch revenue statistics' 
+    return {
+      success: false,
+      message: 'Failed to fetch revenue statistics',
+      data: {
+        dailyRevenue: 0,
+        weeklyRevenue: 0,
+        monthlyRevenue: 0
+      }
     };
   }
 });

@@ -1,28 +1,40 @@
-import { memo } from 'react';
 import { useRoomsStore } from '../../store/roomsStore';
 
-const QuickStats = memo(() => {
+const QuickStats = () => {
   const stats = useRoomsStore(state => state.stats);
   const spaces = useRoomsStore(state => state.spaces);
 
-  // Calculate checkout pending
-  const checkoutPending = spaces.filter(space => {
-    if (space.currentStatus !== 'OCCUPIED') return false;
-    if (!space.currentBooking?.checkOut) return false;
-    
-    const checkoutDate = new Date(space.currentBooking.checkOut);
-    return checkoutDate < new Date();
-  }).length;
+  // Debug logs
+  console.log('Current stats:', stats);
+  console.log('Current spaces:', spaces);
+
+  // Add null check for spaces
+  const now = new Date();
+  const checkoutPending = spaces?.filter(space => {
+    console.log('Checking space:', space);
+    return space?.currentStatus === 'OCCUPIED' && 
+           space?.bookingId?.checkOut && 
+           new Date(space.bookingId.checkOut) < now;
+  })?.length || 0;  // Default to 0 if undefined
+
+  console.log('Computed checkout pending:', checkoutPending);
+
+  const computedStats = {
+    available: stats?.available || 0,
+    maintenance: stats?.maintenance || 0,
+    checkoutPending,
+    occupied: (stats?.occupied || 0) - checkoutPending
+  };
 
   const statCards = [
     { 
       label: 'Available Rooms', 
-      value: stats.available, 
+      value: computedStats.available, 
       color: 'text-green-600' 
     },
     { 
       label: 'Occupied Rooms', 
-      value: stats.occupied, 
+      value: computedStats.occupied,
       color: 'text-red-600' 
     },
     { 
@@ -32,9 +44,9 @@ const QuickStats = memo(() => {
     },
     { 
       label: 'Maintenance', 
-      value: stats.maintenance, 
+      value: computedStats.maintenance, 
       color: 'text-gray-600' 
-    },
+    }
   ];
 
   return (
@@ -47,7 +59,7 @@ const QuickStats = memo(() => {
       ))}
     </div>
   );
-});
+};
 
 QuickStats.displayName = 'QuickStats';
 

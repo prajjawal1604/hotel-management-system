@@ -38,7 +38,7 @@ async validateAndGetOrgUri() {
         }
 
         // Get master database explicitly
-        const masterDb = this.masterConnection.useDb('master');
+        const masterDb = this.masterConnection.useDb('test');
 
         // Get organizations collection
         const organizations = masterDb.collection('organizations');

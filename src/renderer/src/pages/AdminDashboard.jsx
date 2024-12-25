@@ -6,7 +6,7 @@ const AdminDashboard = () => {
     <div className="min-h-screen">
       <div className="space-y-6 p-6">
         <RevenueStats />
-        {/* <QuickStats /> */}
+        <QuickStats />
         {/* <SearchAndFilters />
         <RoomStatusLegend /> */}
       </div>

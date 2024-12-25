@@ -1,19 +1,39 @@
+import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { useRoomsStore } from '../store/roomsStore';
 import AdminDashboard from './AdminDashboard';
-// import FrontOfficeDashboard from './FrontOfficeDashboard.jsx';
 
 const Dashboard = () => {
   const { auth: { isAuthenticated, userRole } } = useStore();
-  
-  // Rooms state
-  const { spaces, stats } = useRoomsStore();
+  const { setSpaces, setStats, setCategories } = useRoomsStore();
+
+  // Fetch room data when dashboard mounts
+  useEffect(() => {
+    const fetchRoomData = async () => {
+      try {
+        const result = await window.electron.getRoomData();
+        if (result.success) {
+          // Update store with fetched data
+          setSpaces(result.data.spaces);
+          setCategories(result.data.categories);
+          setStats(result.data.stats);
+        } else {
+          console.error('Failed to fetch room data:', result.message);
+        }
+      } catch (error) {
+        console.error('Error fetching room data:', error);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchRoomData();
+    }
+  }, [isAuthenticated, setSpaces, setCategories, setStats]);
 
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
-  
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
