@@ -2,16 +2,21 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { useRoomsStore }  from '../../store/roomsStore.js';
 import Logo from '../../assets/images/logo/logoTextBlack.png';
 
 const Header = () => {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  
   const { 
     auth: { isAuthenticated, userRole },
     logout 
   } = useStore();
+
+  
+    const { setSpaces, setStats, setCategories } = useRoomsStore();
 
   const handleLogout = async () => {
     try {
