@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { useStore } from '../../../store/useStore';
 
 const OrgDetailsModal = ({ onClose }) => {
-  const orgDetails = useStore(state => state.orgDetails);
+  const orgDetails = useStore(state => state.orgDetails)||{};
   const setOrgDetails = useStore(state => state.setOrgDetails);
   
   const [formData, setFormData] = useState({
