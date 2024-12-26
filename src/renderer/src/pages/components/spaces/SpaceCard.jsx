@@ -88,7 +88,10 @@ const SpaceCard = ({ space, category }) => {
           </div>
           {canDelete && (
             <button
-              onClick={() => setShowDeleteConfirm(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDeleteConfirm(true);
+            }}
               className="p-1.5 text-gray-600 hover:bg-white rounded-full transition-colors"
               title="Delete Space"
             >
