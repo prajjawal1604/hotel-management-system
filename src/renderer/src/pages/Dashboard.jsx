@@ -8,35 +8,41 @@ const Dashboard = () => {
   const { auth: { isAuthenticated, userRole } } = useStore();
   const { setSpaces, setStats, setCategories, setOrgDetails } = useRoomsStore();
 
-  // Fetch room data when dashboard mounts
-  useEffect(() => {
-    const fetchRoomData = async () => {
-      try {
-        const [roomResult, orgResult] = await Promise.all([
-          window.electron.getRoomData(),
-          window.electron.getOrgDetails()
-        ]);
+  // Function to fetch room data
+  const fetchRoomData = async () => {
+    try {
+      const [roomResult, orgResult] = await Promise.all([
+        window.electron.getRoomData(),
+        window.electron.getOrgDetails()
+      ]);
 
-        // Handle room data
-        if (roomResult.success) {
-          setSpaces(roomResult.data.spaces);
-          setCategories(roomResult.data.categories);
-          setStats(roomResult.data.stats);
-        }
-
-        // Handle org data
-        if (orgResult.success) {
-          setOrgDetails(orgResult.data);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
+      if (roomResult.success) {
+        setSpaces(roomResult.data.spaces);
+        setCategories(roomResult.data.categories);
+        setStats(roomResult.data.stats);
       }
-    };
 
-    if (isAuthenticated) {
-      fetchRoomData();
+      if (orgResult.success) {
+        setOrgDetails(orgResult.data);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
-  }, [isAuthenticated, setSpaces, setCategories, setStats, setOrgDetails]);
+  };
+
+  // Initial data fetch and auto-refresh setup
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Initial fetch
+      fetchRoomData();
+
+      // Set up auto-refresh every 30 minutes
+      const refreshInterval = setInterval(fetchRoomData, 30 * 60 * 1000);
+
+      // Cleanup on unmount
+      return () => clearInterval(refreshInterval);
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;

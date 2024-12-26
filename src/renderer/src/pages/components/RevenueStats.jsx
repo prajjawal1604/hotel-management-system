@@ -36,7 +36,7 @@ const RevenueStats = () => {
     };
 
     fetchRevenueStats();
-    const interval = setInterval(fetchRevenueStats, 5 * 60 * 1000);
+    const interval = setInterval(fetchRevenueStats, 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, [setRevenueStats]);
 
