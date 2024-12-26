@@ -23,6 +23,7 @@ const LoginPage = () => {
     general: ''
   });
 
+  // Cleanup effect
   useEffect(() => {
     return () => {
       setIsLoading(false);
@@ -30,112 +31,143 @@ const LoginPage = () => {
     };
   }, []);
 
-  const validateForm = () => {
-    let isValid = true;
-    const newErrors = { identifier: '', password: '', general: '' };
+// Form validation
+const validateForm = () => {
+  let isValid = true;
+  const newErrors = { identifier: '', password: '', general: '' };
 
-    if (!formData.identifier.trim()) {
-      newErrors.identifier = 'Username or email is required';
+  if (!formData.identifier.trim()) {
+    newErrors.identifier = 'Username or email is required';
+    isValid = false;
+  }
+
+  if (formData.identifier.includes('@')) {
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(formData.identifier)) {
+      newErrors.identifier = 'Please enter a valid email';
       isValid = false;
     }
+  }
 
-    if (formData.identifier.includes('@')) {
-      const emailRegex = /\S+@\S+\.\S+/;
-      if (!emailRegex.test(formData.identifier)) {
-        newErrors.identifier = 'Please enter a valid email';
-        isValid = false;
-      }
-    }
+  if (!formData.password) {
+    newErrors.password = 'Password is required';
+    isValid = false;
+  }
 
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    }
+  setErrors(newErrors);
+  return isValid;
+};
 
-    setErrors(newErrors);
-    return isValid;
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setErrors({ identifier: '', password: '', general: '' });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setErrors({ identifier: '', password: '', general: '' });
+  if (!validateForm()) return;
+
+  setIsLoading(true);
+  console.log('Attempting login with:', { 
+    identifier: formData.identifier, 
+    role: selectedRole 
+  });
   
-    if (!validateForm()) return;
-  
-    setIsLoading(true);
-    
-    try {        
-      const result = await window.electron.login({
-        identifier: formData.identifier,
-        password: formData.password,
-        role: selectedRole
-      });
-  
-      if (result.subscriptionExpired) {
-        setErrors({
-          ...errors,
-          general: 'Your subscription has expired. Please contact administrator to continue.'
-        });
-        return;
-      }
-  
-      if (result.success) {        
-        if (result.subscriptionWarning) {
-          alert(result.subscriptionWarning);
-        }
-  
-        // Update auth store
-        setAuth({
-          isAuthenticated: true,
-          userRole: selectedRole,
-          userData: {
-            username: result.username
-          },
-          orgDetails: result.orgDetails
-        });
-  
-        // Initialize rooms store
-        const {
-          setSpaces,
-          setCategories,
-          setStats
-        } = useRoomsStore.getState(); // Get action functions
-  
-        // Get initial room data
-        const roomData = await window.electron.getRoomData();
-        setSpaces(roomData.spaces);
-        setCategories(roomData.categories);
-        setStats(roomData.stats);
-        
-        navigate('/dashboard', { replace: true });
-      } else {
-        setErrors({
-          ...errors,
-          general: result.message || 'Invalid credentials'
-        });
-      }
-    } catch (error) {
+  try {        
+    // Login attempt
+    const result = await window.electron.login({
+      identifier: formData.identifier,
+      password: formData.password,
+      role: selectedRole
+    });
+
+    console.log('Login response:', {
+      success: result.success,
+      hasWarning: !!result.subscriptionWarning,
+      isExpired: result.subscriptionExpired
+    });
+
+    if (result.subscriptionExpired) {
       setErrors({
         ...errors,
-        general: error.message || 'Login failed. Please try again.'
+        general: 'Your subscription has expired. Please contact administrator to continue.'
       });
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
 
-  const handleInputChange = (field) => (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
+    if (result.success) {        
+      if (result.subscriptionWarning) {
+        alert(result.subscriptionWarning);
+      }
+
+      // Extract relevant data from result
+      const { username, role, data } = result;
+      console.log('Setting auth data:', { username, role });
+
+      // Update auth store with proper data structure
+      setAuth({
+        isAuthenticated: true,
+        userRole: role,
+        userData: { username },
+        orgDetails: data.orgDetails // Using data from the proper path
+      });
+
+      // Initialize rooms store
+      const {
+        setSpaces,
+        setCategories,
+        setStats
+      } = useRoomsStore.getState();
+
+      // Fetch and set room data
+      const roomDataResult = await window.electron.getRoomData();
+      console.log('Room data received:', {
+        success: roomDataResult.success,
+        spacesCount: roomDataResult.data?.spaces?.length,
+        categoriesCount: roomDataResult.data?.categories?.length
+      });
+
+      if (roomDataResult.success && roomDataResult.data) {
+        // Set store data with defaults if needed
+        setSpaces(roomDataResult.data.spaces || []);
+        setCategories(roomDataResult.data.categories || []);
+        setStats(roomDataResult.data.stats || {
+          available: 0,
+          occupied: 0,
+          maintenance: 0
+        });
+        
+        console.log('Store data updated, navigating to dashboard');
+        navigate('/dashboard', { replace: true });
+      } else {
+        throw new Error('Failed to fetch room data');
+      }
+    } else {
+      setErrors({
+        ...errors,
+        general: result.message || 'Invalid credentials'
+      });
     }
-  };
+  } catch (error) {
+    console.error('Login process error:', error);
+    setErrors({
+      ...errors,
+      general: error.message || 'Login failed. Please try again.'
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const handleInputChange = (field) => (e) => {
+  setFormData(prev => ({
+    ...prev,
+    [field]: e.target.value
+  }));
+  if (errors[field]) {
+    setErrors(prev => ({
+      ...prev,
+      [field]: ''
+    }));
+  }
+};
 
   return (
     <div className="h-[calc(100vh-12rem)] w-full flex flex-col items-center justify-center">

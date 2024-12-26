@@ -8,7 +8,7 @@ const organizationSchema = new mongoose.Schema({
     orgDbUri: String,
     email: String,
     gstNumber: String,
-    gst: String
+    gst: { type: Number, min: 0, max: 100, default: 0 }
 });
 
 // Hotel DB Schemas

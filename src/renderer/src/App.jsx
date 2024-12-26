@@ -26,30 +26,32 @@ const RoleRoute = ({ children, allowedRole }) => {
   return children;
 };
 
-function App() {
+const App = () => {
   return (
-    <Router>
-      <Layout>
-        <Routes>
-          {/* Public Route */}
-          <Route path="/" element={<LoginPage />} />
+    <>
+      <Router>
+        <Layout>
+          <Routes>
+            {/* Public Route */}
+            <Route path="/" element={<LoginPage />} />
 
-          {/* Protected Dashboard Route */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
+            {/* Protected Dashboard Route */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
-    </Router>
+            {/* Catch all route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Layout>
+      </Router>
+    </>
   );
-}
+};
 
 export default App;

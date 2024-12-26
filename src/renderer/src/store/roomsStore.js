@@ -1,54 +1,108 @@
 import { create } from 'zustand';
 
+/**
+ * RoomsStore - Manages hotel rooms, categories, and related data state
+ */
 export const useRoomsStore = create((set) => ({
-  spaces: [],
-  categories: [],
+  // Base State
+  spaces: [],         // Stores all rooms/spaces with their details
+  categories: [],     // Stores all categories/floors
   stats: {
-    available: 0,
-    occupied: 0,
-    maintenance: 0
+    available: 0,     // Count of available rooms
+    occupied: 0,      // Count of occupied rooms
+    maintenance: 0    // Count of rooms in maintenance
   },
   filters: {
-    search: '',
-    status: 'all',
-    sort: 'default'
+    search: '',       // Text search query
+    status: 'all',    // Room status filter
+    sort: 'default'   // Sorting preference
   },
   revenueStats: {
-    dailyRevenue: 0,
-    weeklyRevenue: 0,
-    monthlyRevenue: 0
+    dailyRevenue: 0,     // Today's revenue
+    weeklyRevenue: 0,    // Last 7 days revenue
+    monthlyRevenue: 0    // Current month revenue
   },
   orgDetails: {
-    orgName: null,
-    email: null,
-    gstNumber: null,
-    gst: null
+    orgName: null,      // Organization name
+    email: null,        // Organization email
+    gstNumber: null,    // GST registration number
+    gst: null          // GST percentage
   },
 
-  setOrgDetails: (details) => set(state => ({
-    orgDetails: { ...state.orgDetails, ...details }
-  })),
-
-
-  setRevenueStats: (stats) => set((state) => ({
-    revenueStats: { ...state.revenueStats, ...stats }
-  })),
   // Actions
   setSpaces: (spaces) => {
-    console.log('Store Spaces:', spaces);
-    set({ spaces });
+    console.log('Received spaces data:', spaces);
+    // Validate IDs are strings (MongoDB ObjectId conversion check)
+    const validatedSpaces = spaces.map(space => {
+      if (typeof space._id !== 'string') {
+        console.error('Invalid space ID format:', space._id, 'for space:', space.spaceName);
+      }
+      if (typeof space.categoryId._id !== 'string') {
+        console.error('Invalid category ID format in space:', space.categoryId._id, 'for space:', space.spaceName);
+      }
+      return space;
+    });
+    console.log('Storing validated spaces:', validatedSpaces);
+    set({ spaces: validatedSpaces });
   },
-  setCategories: (categories) => set({ categories }),
-  setStats: (stats) => set({ stats }),
-  setFilters: (filters) => set((state) => ({
-    filters: { ...state.filters, ...filters }
-  })),
-  
-  resetFilters: () => set({
-    filters: {
-      search: '',
-      status: 'all',
-      sort: 'default'
+
+  setCategories: (categories) => {
+    console.log('Received categories data:', categories);
+    // Validate category IDs are strings
+    const validatedCategories = categories.map(category => {
+      if (typeof category._id !== 'string') {
+        console.error('Invalid category ID format:', category._id, 'for category:', category.categoryName);
+      }
+      return category;
+    });
+    console.log('Storing validated categories:', validatedCategories);
+    set({ categories: validatedCategories });
+  },
+
+  // Update room statistics
+  setStats: (stats) => {
+    console.log('Updating room statistics:', stats);
+    set({ stats });
+  },
+
+  // Update filter settings
+  setFilters: (filters) => {
+    console.log('Applying new filters:', filters);
+    set((state) => ({
+      filters: { ...state.filters, ...filters }
+    }));
+  },
+
+  // Reset filters to default values
+  resetFilters: () => {
+    console.log('Resetting filters to default');
+    set({
+      filters: {
+        search: '',
+        status: 'all',
+        sort: 'default'
+      }
+    });
+  },
+
+  // Update revenue statistics
+  setRevenueStats: (stats) => {
+    console.log('Updating revenue statistics:', stats);
+    set((state) => ({
+      revenueStats: { ...state.revenueStats, ...stats }
+    }));
+  },
+
+  // Update organization details
+  setOrgDetails: (details) => {
+    console.log('Received organization details update:', details);
+    // Validate organization ID is string
+    if (details._id && typeof details._id !== 'string') {
+      console.error('Invalid organization ID format:', details._id);
     }
-  })
-})); 
+    console.log('Updating organization details');
+    set(state => ({
+      orgDetails: { ...state.orgDetails, ...details }
+    }));
+  }
+}));

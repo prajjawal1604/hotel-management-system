@@ -1,60 +1,118 @@
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import { useRoomsStore } from '../../../store/roomsStore';
+import ConfirmationModal from '../modals/ConfirmationModal';
 
-
-// SpaceCard.jsx
 const STATUS_COLORS = {
-    'AVAILABLE': {
-      bg: '#dcfce7',
-      text: '#166534',
-      className: 'bg-green-100 text-green-800'
-    },
-    'OCCUPIED': {
-      bg: '#fee2e2',
-      text: '#991b1b',
-      className: 'bg-red-100 text-red-800'
-    },
-    'MAINTENANCE': {
-      bg: '#f3f4f6',
-      text: '#1f2937',
-      className: 'bg-gray-100 text-gray-800'
+  'AVAILABLE': {
+    bg: '#dcfce7',
+    text: '#166534',
+    className: 'bg-green-100 text-green-800'
+  },
+  'OCCUPIED': {
+    bg: '#fee2e2',
+    text: '#991b1b',
+    className: 'bg-red-100 text-red-800'
+  },
+  'MAINTENANCE': {
+    bg: '#f3f4f6',
+    text: '#1f2937',
+    className: 'bg-gray-100 text-gray-800'
+  }
+};
+
+const SpaceCard = ({ space, category }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDelete = async () => {
+    try {
+      const response = await window.electron.deleteSpace(space._id);
+      if (response.success) {
+        useRoomsStore.getState().setSpaces(response.spaces);
+        useRoomsStore.getState().setStats(response.stats);
+        alert('Space deleted successfully');
+      } else {
+        alert(response.message || 'Failed to delete space');
+      }
+    } catch (error) {
+      console.error('Failed to delete space:', error);
+      alert('An error occurred while deleting the space');
     }
+    setShowDeleteConfirm(false);
   };
 
-  const SpaceCard = ({ space, category }) => {
-    console.log('Space data:', space); // Debug log
-  
-    return (
-      <div
-        className={`p-4 rounded-lg transition-transform hover:scale-105 border border-gray-100
-          cursor-pointer group relative ${STATUS_COLORS[space.currentStatus]?.className}`}
-      >
-        {/* Room Header */}
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold">{space.spaceName}</h3>
-          <span 
-            className={`text-sm px-3 py-0.5 rounded-full capitalize ${STATUS_COLORS[space.currentStatus]?.className}`}
-          >
-            {space.currentStatus.toLowerCase()}
-          </span>
+  const canDelete = ['AVAILABLE', 'MAINTENANCE'].includes(space.currentStatus);
+
+  // Status-based styling
+  const statusStyles = {
+    AVAILABLE: 'bg-green-100 border-green-200 hover:bg-green-50',
+    OCCUPIED: 'bg-red-100 border-red-200 hover:bg-red-50',
+    MAINTENANCE: 'bg-gray-100 border-gray-200 hover:bg-gray-50'
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div className={`rounded-lg p-4 border-2 transition-all ${statusStyles[space.currentStatus]}`}>
+      <div className="flex justify-between items-start">
+        <div>
+          <h3 className="font-semibold text-gray-800 text-lg">{space.spaceName}</h3>
+          <p className="text-sm text-gray-600 mt-1">{space.spaceType}</p>
+          <p className="text-sm font-medium text-gray-700 mt-2">
+            ₹{space.basePrice}
+          </p>
         </div>
-  
-        {/* Room Details */}
-        <p className="text-sm mb-1">{space.spaceType}</p>
-        <p className="font-medium">₹{space.basePrice}/night</p>
-  
-        {/* Guest Info - if room is occupied */}
-        {space.bookingId && space.currentStatus === 'OCCUPIED' && (
-          <div className="mt-2 text-sm space-y-1">
-            {/* Add booking details here when implementing booking feature */}
+        {canDelete && (
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-1.5 text-gray-600 hover:bg-white rounded-full transition-colors"
+            title="Delete Space"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+      </div>
+
+      {/* Status Tag and Guest Details */}
+      <div className="mt-3">
+        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium
+          ${space.currentStatus === 'AVAILABLE' ? 'bg-green-200 text-green-800' :
+            space.currentStatus === 'OCCUPIED' ? 'bg-red-200 text-red-800' :
+            'bg-gray-200 text-gray-800'}`}>
+          {space.currentStatus}
+        </span>
+
+        {space.currentStatus === 'OCCUPIED' && space.bookingId && (
+          <div className="mt-2 text-sm">
+            <p className="text-gray-700 font-medium">
+              Guest: {space.bookingId.primaryGuest?.name || 'N/A'}
+            </p>
+            <div className="flex justify-between mt-1 text-gray-600">
+              <span>In: {formatDate(space.bookingId.checkIn)}</span>
+              <span>Out: {formatDate(space.bookingId.checkOut)}</span>
+            </div>
           </div>
         )}
-        
-        {/* Max Occupancy */}
-        {/* <div className="mt-2 text-sm">
-          <p>Max Occupancy: {space.maxOccupancy.adults} Adults, {space.maxOccupancy.kids} Kids</p>
-        </div> */}
       </div>
-    );
-  };
+
+      {showDeleteConfirm && (
+        <ConfirmationModal
+          title="Delete Space"
+          message={`Are you sure you want to delete ${space.spaceName}? This action cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+    </div>
+  );
+};
 
 export default SpaceCard;

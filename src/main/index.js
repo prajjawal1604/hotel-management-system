@@ -1,3 +1,4 @@
+// Main process imports
 import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
@@ -5,10 +6,11 @@ import icon from '../../resources/icon.png?asset';
 import { initializeDatabases } from './database/dbInit';
 import connectionManager from './database/connectionManager';
 import models from './database/models';
-
 import mongoose from 'mongoose';
 
+// Window creation and initialization
 function createWindow() {
+  console.log('Creating main application window...');
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -22,6 +24,7 @@ function createWindow() {
   });
 
   mainWindow.on('ready-to-show', () => {
+    console.log('Window ready to show');
     mainWindow.show();
   });
 
@@ -30,17 +33,25 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // Load appropriate URL based on environment
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    console.log('Loading development URL:', process.env['ELECTRON_RENDERER_URL']);
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
+    console.log('Loading production build');
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 }
-// Initialization
+
+// Application initialization
 app.whenReady().then(async () => {
   try {
+    console.log('Initializing application...');
     await initializeDatabases();
+    console.log('Databases initialized successfully');
+    
     electronApp.setAppUserModelId('com.electron');
+    
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window);
     });
@@ -48,7 +59,10 @@ app.whenReady().then(async () => {
     createWindow();
 
     app.on('activate', function () {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      if (BrowserWindow.getAllWindows().length === 0) {
+        console.log('No windows found, creating new window');
+        createWindow();
+      }
     });
     
   } catch (error) {
@@ -57,59 +71,82 @@ app.whenReady().then(async () => {
   }
 });
 
-// Clean up
+// Clean up on window close
 app.on('window-all-closed', async () => {
+  console.log('All windows closed');
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// Basic IPC Handlers for connection status
+// Basic connection status handler
 ipcMain.handle('check-connection-status', async () => {
+  console.log('Checking database connection status...');
   const connectionManager = require('./database/connectionManager');
-  return {
+  const status = {
     masterConnected: !!connectionManager.getMasterConnection(),
     orgConnected: !!connectionManager.getOrgConnection()
   };
+  console.log('Connection status:', status);
+  return status;
 });
 
-// Add more IPC handlers as we implement features
+// Authentication Handlers
 
+/**
+ * Login Handler
+ * Process:
+ * 1. Validate credentials
+ * 2. Check user exists
+ * 3. Verify organization and subscription
+ * 4. Return user data with subscription status
+ */
 ipcMain.handle('login', async (_, credentials) => {
   try {
-    console.log('Received credentials:', credentials);
+    console.log('Login attempt received:', { 
+      identifier: credentials.identifier,
+      role: credentials.role 
+    });
+
     const { identifier, password, role } = credentials;
 
-    // Validate credentials
+    // Validate input
     if (!identifier || !password || !role) {
+      console.log('Missing credentials in login attempt');
       return {
         success: false,
         message: 'Missing credentials'
       };
     }
 
-    const isEmail = identifier.includes('@');
-
-    // First validate user
+    // Find user in org database
     const { User } = models.getOrgModels();
-    const query = isEmail 
-      ? { email: identifier, role } 
-      : { username: identifier, role };
+    const isEmail = identifier.includes('@');
+    const query = isEmail ? { email: identifier, role } : { username: identifier, role };
     
-    const user = await User.findOne(query);
+    console.log('Looking up user with query:', query);
+    const user = await User.findOne(query).lean();
 
+    // Validate user exists and password matches
     if (!user || user.password !== password) {
+      console.log('Invalid credentials for login attempt');
       return {
         success: false,
         message: 'Invalid credentials'
       };
     }
 
-    // Then check organization subscription
+    console.log('User found:', { 
+      username: user.username, 
+      role: user.role 
+    });
+
+    // Check organization subscription
     const { Organization } = models.getMasterModels();
-    
-    // Find organization (without using ID since we only have one)
-    const org = await Organization.findOne();
+    console.log('Checking organization details and subscription');
+    const org = await Organization.findOne({ 
+      orgName: "Maa Mangala Residency" 
+    }).lean();
     
     if (!org) {
       console.error('No organization found in master database');
@@ -119,13 +156,12 @@ ipcMain.handle('login', async (_, credentials) => {
       };
     }
 
-    console.log('Found organization:', org); // Debug log
-
-    // Check subscription
+    // Validate subscription
     const currentDate = new Date();
     const subscriptionEndDate = new Date(org.subscriptionEndDate);
     
     if (currentDate > subscriptionEndDate) {
+      console.log('Subscription expired for organization');
       return {
         success: false,
         subscriptionExpired: true,
@@ -133,20 +169,29 @@ ipcMain.handle('login', async (_, credentials) => {
       };
     }
 
+    // Calculate subscription warning if needed
     const daysUntilExpiry = Math.ceil((subscriptionEndDate - currentDate) / (1000 * 60 * 60 * 24));
     let subscriptionWarning = null;
 
     if (daysUntilExpiry <= 30) {
+      console.log(`Subscription expiring soon: ${daysUntilExpiry} days remaining`);
       subscriptionWarning = `Your subscription will expire in ${daysUntilExpiry} days. Please contact administrator to renew.`;
     }
 
+    // Return successful login response with proper string IDs
     return {
       success: true,
       username: user.username,
       role: user.role,
       subscriptionWarning,
-      orgDetails: {
-        subscriptionEndDate: org.subscriptionEndDate
+      data: {
+        ...user,
+        _id: user._id.toString(),
+        orgDetails: {
+          ...org,
+          _id: org._id.toString(),
+          subscriptionEndDate: org.subscriptionEndDate
+        }
       }
     };
 
@@ -159,10 +204,14 @@ ipcMain.handle('login', async (_, credentials) => {
   }
 });
 
+/**
+ * Logout Handler
+ * Simple handler to manage logout process
+ * Currently only returns success status as state cleanup is handled on frontend
+ */
 ipcMain.handle('logout', async () => {
   try {
-    // Currently no cleanup needed in main process
-    // Frontend zustand store handles state cleanup
+    console.log('Processing logout request');
     return { 
       success: true,
       message: 'Logged out successfully'
@@ -176,106 +225,27 @@ ipcMain.handle('logout', async () => {
   }
 });
 
-ipcMain.handle('get-room-data', async () => {
-  try {
-    const { Space, Category } = models.getOrgModels();
-    
-    if (!Space || !Category) {
-      throw new Error('Models not properly initialized');
-    }
+// Category CRUD Operations
 
-    console.log('Starting to fetch room data...');
-    
-    // Fetch spaces with populated category data
-    const spacesDoc = await Space.find().populate({
-      path: 'categoryId',
-      model: 'categories'
-    }).lean(); // Use lean() for better performance
-    
-    console.log(`Found ${spacesDoc.length} spaces`);
-    console.log(spacesDoc);
-
-    // Fetch categories
-    const categoriesDoc = await Category.find().lean();
-    console.log(`Found ${categoriesDoc.length} categories`);
-    console.log(categoriesDoc);
-
-    // Calculate stats
-    const stats = {
-      available: spacesDoc.filter(space => space.currentStatus === 'AVAILABLE').length,
-      occupied: spacesDoc.filter(space => space.currentStatus === 'OCCUPIED').length,
-      maintenance: spacesDoc.filter(space => space.currentStatus === 'MAINTENANCE').length
-    };
-
-    console.log('Room Statistics:', {
-      total: spacesDoc.length,
-      ...stats
-    });
-
-    // Log first space as sample (if exists)
-    if (spacesDoc.length > 0) {
-      console.log('Sample space data:', {
-        space: spacesDoc,
-        status: spacesDoc[0].currentStatus
-      });
-    }
-
-    return {
-      success: true,
-      data: { 
-        spaces: spacesDoc,      // lean() already returns plain objects
-        categories: categoriesDoc,
-        stats
-      }
-    };
-  } catch (error) {
-    console.error('Get room data error:', error);
-    return { 
-      success: false, 
-      message: 'Failed to fetch room data',
-      error: error.message,
-      // Include error details for debugging
-      errorDetails: {
-        name: error.name,
-        stack: error.stack
-      }
-    };
-  }
-});
-
-// Update Room Status
-ipcMain.handle('update-room', async (_, roomData) => {
-  try {
-    const { Space } = models.getOrgModels();
-    
-    const updatedRoom = await Space.findByIdAndUpdate(
-      roomData._id,
-      { 
-        currentStatus: roomData.status,
-        lastUpdated: new Date()
-      },
-      { new: true }
-    );
-
-    return {
-      success: true,
-      data: updatedRoom
-    };
-  } catch (error) {
-    console.error('Update room error:', error);
-    return { success: false, message: 'Failed to update room' };
-  }
-});
-
-// Category Operations
+/**
+ * Get Categories Handler
+ * Retrieves all categories with proper ID string conversion
+ */
 ipcMain.handle('get-categories', async () => {
   try {
+    console.log('Fetching all categories');
     const { Category } = models.getOrgModels();
-    const categories = await Category.find();
+    const categories = await Category.find().lean();
     
+    console.log(`Retrieved ${categories.length} categories`);
+    console.log('Categories data:', JSON.stringify(categories, null, 2));
+
     return {
       success: true,
-      data: categories
+      data: categories.map(category => ({
+        ...category,
+        _id: category._id.toString()
+      }))
     };
   } catch (error) {
     console.error('Get categories error:', error);
@@ -283,16 +253,25 @@ ipcMain.handle('get-categories', async () => {
   }
 });
 
+/**
+ * Add Category Handler
+ * Process:
+ * 1. Check for duplicate names
+ * 2. Create new category
+ * 3. Return updated list of all categories
+ */
 ipcMain.handle('add-category', async (_, categoryData) => {
   try {
+    console.log('Adding new category:', JSON.stringify(categoryData, null, 2));
     const { Category } = models.getOrgModels();
     
-    // Check if category name already exists
+    // Check for existing category with same name
     const existingCategory = await Category.findOne({ 
       categoryName: categoryData.categoryName 
     }).lean();
 
     if (existingCategory) {
+      console.log('Category name already exists:', categoryData.categoryName);
       return { 
         success: false, 
         message: 'Category with this name already exists' 
@@ -304,32 +283,37 @@ ipcMain.handle('add-category', async (_, categoryData) => {
       ...categoryData,
       lastUpdated: new Date()
     });
-    const plainCategory = {
-      _id: newCategory._id.toString(),
-      categoryName: newCategory.categoryName,
-      lastUpdated: newCategory.lastUpdated
-    };
+    console.log('New category created:', JSON.stringify(newCategory.toObject(), null, 2));
 
+    // Fetch all updated categories
     const allCategories = await Category.find().lean();
-
+    console.log(`Total categories after addition: ${allCategories.length}`);
 
     return {
       success: true,
-      data: plainCategory,
-      categories: allCategories  
+      data: {
+        ...newCategory.toObject(),
+        _id: newCategory._id.toString()
+      },
+      categories: allCategories.map(category => ({
+        ...category,
+        _id: category._id.toString()
+      }))
     };
 
   } catch (error) {
     console.error('Add category error:', error);
-    return { 
-      success: false, 
-      message: 'Failed to add category' 
-    };
+    return { success: false, message: 'Failed to add category' };
   }
 });
 
+/**
+ * Update Category Handler
+ * Updates category details and returns the updated data
+ */
 ipcMain.handle('update-category', async (_, categoryData) => {
   try {
+    console.log('Updating category:', JSON.stringify(categoryData, null, 2));
     const { Category } = models.getOrgModels();
     
     const updatedCategory = await Category.findByIdAndUpdate(
@@ -339,11 +323,16 @@ ipcMain.handle('update-category', async (_, categoryData) => {
         lastUpdated: new Date()
       },
       { new: true }
-    );
+    ).lean();
+
+    console.log('Category updated successfully:', JSON.stringify(updatedCategory, null, 2));
 
     return {
       success: true,
-      data: updatedCategory
+      data: {
+        ...updatedCategory,
+        _id: updatedCategory._id.toString()
+      }
     };
   } catch (error) {
     console.error('Update category error:', error);
@@ -351,136 +340,235 @@ ipcMain.handle('update-category', async (_, categoryData) => {
   }
 });
 
+/**
+ * Delete Category Handler
+ */
 ipcMain.handle('delete-category', async (_, categoryId) => {
   try {
+    console.log('Attempting to delete category:', categoryId);
     const { Category, Space } = models.getOrgModels();
     
-    // Check if category has spaces
-    const hasSpaces = await Space.findOne({ categoryId });
+    // Check for existing spaces in this category
+    const hasSpaces = await Space.findOne({ categoryId }).lean();
     if (hasSpaces) {
+      console.log('Cannot delete: category has existing spaces');
       return { 
         success: false, 
-        message: 'Cannot delete category with existing spaces' 
+        message: 'Cannot delete category with existing spaces',
+        hasSpaces: true
       };
     }
 
+    // Proceed with deletion
     await Category.findByIdAndDelete(categoryId);
+    console.log('Category deleted successfully');
 
-    return { success: true };
+    // Fetch updated categories list
+    const updatedCategories = await Category.find().lean();
+    
+    return { 
+      success: true,
+      message: 'Category deleted successfully',
+      categories: updatedCategories.map(cat => ({
+        ...cat,
+        _id: cat._id.toString()
+      }))
+    };
   } catch (error) {
     console.error('Delete category error:', error);
-    return { success: false, message: 'Failed to delete category' };
+    return { 
+      success: false, 
+      message: 'Failed to delete category',
+      error: error.message 
+    };
   }
 });
 
-// Space Operations
-ipcMain.handle('add-space', async (_, spaceData) => {
+// Space CRUD Operations
+
+/**
+ * Get Room Data Handler
+ * Retrieves all spaces with their categories and calculates stats
+ */
+ipcMain.handle('get-room-data', async () => {
   try {
-      console.log('Received spaceData:', JSON.stringify(spaceData, null, 2));
+    const { Space, Category } = models.getOrgModels();
+    console.log('Starting to fetch room data...');
+    
+    if (!Space || !Category) {
+      throw new Error('Models not properly initialized');
+    }
+    
+    // Fetch spaces with populated category data
+    const spacesDoc = await Space.find()
+      .populate({
+        path: 'categoryId',
+        model: 'categories'
+      })
+      .lean();
+    
+    console.log(`Found ${spacesDoc.length} spaces`);
 
-      const { Space } = models.getOrgModels();
+    // Fetch categories
+    const categoriesDoc = await Category.find().lean();
+    console.log(`Found ${categoriesDoc.length} categories`);
 
-      // Validate `categoryId`
-      if (!spaceData.categoryId) {
-          throw new Error('categoryId is required');
-      }
+    // Calculate room statistics
+    const stats = {
+      available: spacesDoc.filter(space => space.currentStatus === 'AVAILABLE').length,
+      occupied: spacesDoc.filter(space => space.currentStatus === 'OCCUPIED').length,
+      maintenance: spacesDoc.filter(space => space.currentStatus === 'MAINTENANCE').length
+    };
 
-      // Convert `categoryId` to ObjectId if it's not already a string
-      if (!mongoose.Types.ObjectId.isValid(spaceData.categoryId)) {
-          throw new Error('Invalid categoryId');
-      }
+    console.log('Room Statistics:', stats);
 
-      spaceData.categoryId = new mongoose.Types.ObjectId(spaceData.categoryId);
-
-      // Ensure numerical fields are properly typed
-      spaceData.basePrice = Number(spaceData.basePrice);
-      spaceData.maxOccupancy = {
-          adults: Number(spaceData.maxOccupancy.adults),
-          kids: Number(spaceData.maxOccupancy.kids),
-      };
-
-      console.log('Final spaceData after conversions:', JSON.stringify(spaceData, null, 2));
-
-      // Create the new space
-      const newSpace = await Space.create(spaceData);
-
-      console.log('Created newSpace:', JSON.stringify(newSpace.toObject(), null, 2));
-
-      // Fetch all spaces with populated categoryId
-      const allSpaces = await Space.find().populate('categoryId').lean();
-
-      // Convert `_id` fields to strings
-      const allSpacesConverted = allSpaces.map((space) => ({
+    // Ensure we're returning an object with success and data properties
+    return {
+      success: true,
+      data: { 
+        spaces: spacesDoc.map(space => ({
           ...space,
           _id: space._id.toString(),
-          categoryId: space.categoryId
-              ? {
-                    ...space.categoryId,
-                    _id: space.categoryId._id.toString(),
-                }
-              : null,
-      }));
-
-      console.log('Converted allSpaces:', JSON.stringify(allSpacesConverted, null, 2));
-
-      return {
-          success: true,
-          data: newSpace.toObject(),
-          spaces: allSpacesConverted,
-      };
+          categoryId: {
+            ...space.categoryId,
+            _id: space.categoryId._id.toString()
+          }
+        })) || [],
+        categories: categoriesDoc.map(category => ({
+          ...category,
+          _id: category._id.toString()
+        })) || [],
+        stats
+      }
+    };
   } catch (error) {
-      console.error('Add space error:', error);
-
-      return {
-          success: false,
-          message: 'Failed to add space',
-          error: error.message,
-      };
+    console.error('Get room data error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to fetch room data',
+      data: {
+        spaces: [],
+        categories: [],
+        stats: {
+          available: 0,
+          occupied: 0,
+          maintenance: 0
+        }
+      }
+    };
   }
 });
 
-
-
-
-ipcMain.handle('delete-space', async (_, spaceId) => {
+/**
+ * Add Space Handler
+ * Process:
+ * 1. Validate input data
+ * 2. Convert types and IDs
+ * 3. Create space
+ * 4. Return updated space list
+ */
+ipcMain.handle('add-space', async (_, spaceData) => {
   try {
-    const { Space } = models.getOrgModels();
-    
-    // Check if space is occupied
-    const space = await Space.findById(spaceId);
-    if (space.currentStatus === 'OCCUPIED') {
-      return { 
-        success: false, 
-        message: 'Cannot delete occupied space' 
-      };
+    console.log('Add Space - Received data:', JSON.stringify(spaceData, null, 2));
+
+    const { Space, Category } = models.getOrgModels();
+    if (!Space || !Category) {
+      throw new Error('Models not properly initialized');
     }
 
-    await Space.findByIdAndDelete(spaceId);
+    // Validate all required fields
+    const requiredFields = ['spaceName', 'spaceType', 'categoryId', 'basePrice', 'maxOccupancy'];
+    for (const field of requiredFields) {
+      if (!spaceData[field]) {
+        throw new Error(`${field} is required`);
+      }
+    }
 
-    return { success: true };
+    // Create processed space data
+    const processedData = {
+      spaceName: spaceData.spaceName.trim(),
+      spaceType: spaceData.spaceType,
+      categoryId: new mongoose.Types.ObjectId(spaceData.categoryId),
+      basePrice: Number(spaceData.basePrice),
+      maxOccupancy: {
+        adults: Number(spaceData.maxOccupancy.adults),
+        kids: Number(spaceData.maxOccupancy.kids)
+      },
+      currentStatus: 'AVAILABLE',
+      lastUpdated: new Date()
+    };
+
+    console.log('Add Space - Processed data:', JSON.stringify(processedData, null, 2));
+
+    // Create new space
+    const newSpace = await Space.create(processedData);
+    console.log('Add Space - Created new space:', JSON.stringify(newSpace.toObject(), null, 2));
+
+    // Fetch all spaces
+    const spaces = await Space.find().lean();
+    
+    // Manually populate category data
+    const populatedSpaces = await Promise.all(spaces.map(async (space) => {
+      const category = await Category.findById(space.categoryId).lean();
+      return {
+        ...space,
+        _id: space._id.toString(),
+        categoryId: category ? {
+          ...category,
+          _id: category._id.toString()
+        } : space.categoryId.toString()
+      };
+    }));
+
+    console.log('Add Space - Total spaces after addition:', populatedSpaces.length);
+
+    return {
+      success: true,
+      data: {
+        ...newSpace.toObject(),
+        _id: newSpace._id.toString(),
+        categoryId: newSpace.categoryId.toString()
+      },
+      spaces: populatedSpaces
+    };
+
   } catch (error) {
-    console.error('Delete space error:', error);
-    return { success: false, message: 'Failed to delete space' };
+    console.error('Add Space - Error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to add space',
+      error: error.toString()
+    };
   }
 });
 
+/**
+ * Update Space Handler
+ * Process:
+ * 1. Check for name conflicts
+ * 2. Update space
+ * 3. Return updated space list
+ */
 ipcMain.handle('update-space', async (_, spaceData) => {
   try {
+    console.log('Updating space with data:', JSON.stringify(spaceData, null, 2));
     const { Space } = models.getOrgModels();
     
-    // Check if new name conflicts with existing space in same category
+    // Check for name conflicts
     if (spaceData.spaceName) {
       const exists = await Space.findOne({ 
         categoryId: spaceData.categoryId,
         spaceName: spaceData.spaceName,
-        _id: { $ne: spaceData._id } // Exclude current space
+        _id: { $ne: spaceData._id }
       }).lean();
       
       if (exists) {
+        console.log('Space name conflict found in category:', spaceData.categoryId);
         return { success: false, message: 'Space name already exists in this category' };
       }
     }
 
+    // Update space
     const updatedSpace = await Space.findByIdAndUpdate(
       spaceData._id,
       {
@@ -488,17 +576,37 @@ ipcMain.handle('update-space', async (_, spaceData) => {
         lastUpdated: new Date()
       },
       { new: true }
-    ).populate('categoryId');
+    )
+    .populate('categoryId')
+    .lean();
 
-    // Get all updated spaces
+    console.log('Space updated:', JSON.stringify(updatedSpace, null, 2));
+
+    // Fetch updated space list
     const allSpaces = await Space.find()
       .populate('categoryId')
       .lean();
 
+    console.log(`Total spaces after update: ${allSpaces.length}`);
+
     return {
       success: true,
-      data: updatedSpace,
-      spaces: allSpaces
+      data: {
+        ...updatedSpace,
+        _id: updatedSpace._id.toString(),
+        categoryId: {
+          ...updatedSpace.categoryId,
+          _id: updatedSpace.categoryId._id.toString()
+        }
+      },
+      spaces: allSpaces.map(space => ({
+        ...space,
+        _id: space._id.toString(),
+        categoryId: {
+          ...space.categoryId,
+          _id: space.categoryId._id.toString()
+        }
+      }))
     };
   } catch (error) {
     console.error('Update space error:', error);
@@ -506,102 +614,110 @@ ipcMain.handle('update-space', async (_, spaceData) => {
   }
 });
 
-ipcMain.handle('get-revenue-stats', async () => {
+/**
+ * Delete Space Handler
+ * Process:
+ * 1. Check if space is in deletable state
+ * 2. Delete if in deletable state
+ * 3. Return updated space list and stats
+ */
+ipcMain.handle('delete-space', async (_, spaceId) => {
   try {
-    const { Invoice } = models.getOrgModels();
+    console.log('Attempting to delete space:', spaceId);
+    const { Space } = models.getOrgModels();
     
-    // Get date ranges
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - 7);
-    
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    // Check if space exists and get its state
+    const space = await Space.findById(spaceId).lean();
+    if (!space) {
+      return { 
+        success: false, 
+        message: 'Space not found' 
+      };
+    }
 
-    // Aggregate daily revenue
-    const dailyRevenue = await Invoice.aggregate([
-      {
-        $match: {
-          paymentDate: { $gte: today }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$totalAmount" }
-        }
-      }
-    ]);
+    if (!['AVAILABLE', 'MAINTENANCE'].includes(space.currentStatus)) {
+      console.log('Cannot delete: space is not in deletable state');
+      return { 
+        success: false, 
+        message: 'Can only delete available or maintenance spaces' 
+      };
+    }
 
-    // Aggregate weekly revenue
-    const weeklyRevenue = await Invoice.aggregate([
-      {
-        $match: {
-          paymentDate: { $gte: weekStart }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$totalAmount" }
-        }
-      }
-    ]);
+    // Proceed with deletion
+    await Space.findByIdAndDelete(spaceId);
+    console.log('Space deleted successfully');
 
-    // Aggregate monthly revenue
-    const monthlyRevenue = await Invoice.aggregate([
-      {
-        $match: {
-          paymentDate: { $gte: monthStart }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$totalAmount" }
-        }
-      }
-    ]);
+    // Get updated spaces
+    const updatedSpaces = await Space.find()
+      .populate({
+        path: 'categoryId',
+        model: 'categories'
+      })
+      .lean();
 
-    return {
-      success: true,
-      data: {
-        dailyRevenue: dailyRevenue[0]?.total || 0,
-        weeklyRevenue: weeklyRevenue[0]?.total || 0,
-        monthlyRevenue: monthlyRevenue[0]?.total || 0
-      }
+    // Calculate stats
+    const stats = {
+      available: updatedSpaces.filter(s => s.currentStatus === 'AVAILABLE').length,
+      occupied: updatedSpaces.filter(s => s.currentStatus === 'OCCUPIED').length,
+      maintenance: updatedSpaces.filter(s => s.currentStatus === 'MAINTENANCE').length
     };
 
+    return { 
+      success: true,
+      message: 'Space deleted successfully',
+      spaces: updatedSpaces.map(space => ({
+        ...space,
+        _id: space._id.toString(),
+        categoryId: {
+          ...space.categoryId,
+          _id: space.categoryId._id.toString()
+        }
+      })),
+      stats
+    };
   } catch (error) {
-    console.error('Revenue stats error:', error);
-    return {
-      success: false,
-      message: 'Failed to fetch revenue statistics',
-      data: {
-        dailyRevenue: 0,
-        weeklyRevenue: 0,
-        monthlyRevenue: 0
-      }
+    console.error('Delete space error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to delete space',
+      error: error.message 
     };
   }
 });
 
+// Organization Operations and Revenue Statistics
+
+/**
+ * Get Organization Details Handler
+ * Retrieves organization information from master database
+ */
 ipcMain.handle('get-org-details', async () => {
   try {
+    console.log('Fetching organization details');
     const { Organization } = models.getMasterModels();
-    const org = await Organization.findOne({ orgName: "Maa Mangala Residency" });
+    const org = await Organization.findOne({ 
+      orgName: "Maa Mangala Residency" 
+    }).lean();
 
     if (!org) {
+      console.log('Organization not found in database');
       return { 
         success: false, 
         message: 'Organization not found' 
       };
     }
 
+    console.log('Organization details retrieved:', {
+      orgName: org.orgName,
+      email: org.email,
+      gstNumber: org.gstNumber
+    });
+
     return {
       success: true,
       data: {
+        ...org,
+        _id: org._id.toString(),
         orgName: org.orgName,
         email: org.email,
         gstNumber: org.gstNumber,
@@ -617,33 +733,167 @@ ipcMain.handle('get-org-details', async () => {
   }
 });
 
+/**
+ * Update Organization Details Handler
+ * Updates organization information in master database
+ */
 ipcMain.handle('update-org-details', async (_, details) => {
   try {
+    console.log('Update Org - Received details:', JSON.stringify(details, null, 2));
     const { Organization } = models.getMasterModels();
+    
+    // Validate input
+    if (!details.orgName?.trim()) {
+      throw new Error('Organization name is required');
+    }
+    if (!details.email?.trim()) {
+      throw new Error('Email is required');
+    }
+    if (!details.gstNumber?.trim()) {
+      throw new Error('GST number is required');
+    }
+
+    // Process GST value
+    const gstValue = Number(details.gst);
+    if (isNaN(gstValue) || gstValue < 0 || gstValue > 100) {
+      throw new Error('GST percentage must be between 0 and 100');
+    }
+
+    // Prepare update data
+    const updateData = {
+      ...details,
+      gst: gstValue,  // Store as number
+      lastUpdated: new Date()
+    };
+
+    console.log('Update Org - Processed data:', updateData);
+
     const updatedOrg = await Organization.findOneAndUpdate(
       { orgName: "Maa Mangala Residency" },  
-      { 
-        ...details,
-        lastUpdated: new Date() 
-      },
+      updateData,
       { new: true }
-    );
+    ).lean();
+
+    if (!updatedOrg) {
+      throw new Error('Organization not found');
+    }
+
+    console.log('Update Org - Success:', {
+      orgName: updatedOrg.orgName,
+      email: updatedOrg.email,
+      gstNumber: updatedOrg.gstNumber,
+      gst: updatedOrg.gst
+    });
 
     return {
       success: true,
       data: {
-        orgName: updatedOrg.orgName,
-        email: updatedOrg.email,
-        gstNumber: updatedOrg.gstNumber,
-        gst: updatedOrg.gst
+        ...updatedOrg,
+        _id: updatedOrg._id.toString(),
+        gst: updatedOrg.gst  // Will be returned as number
       }
     };
   } catch (error) {
-    console.error('Update org details error:', error);
+    console.error('Update Org - Error:', error);
     return { 
       success: false, 
-      message: 'Failed to update organization details' 
+      message: error.message || 'Failed to update organization details' 
     };
   }
 });
 
+/**
+ * Get Revenue Statistics Handler
+ * Calculates daily, weekly, and monthly revenue statistics
+ */
+ipcMain.handle('get-revenue-stats', async () => {
+  try {
+    console.log('Calculating revenue statistics');
+    const { Invoice } = models.getOrgModels();
+    
+    // Set up date ranges
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - 7);
+    
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    console.log('Date ranges for revenue calculation:', {
+      today: today.toISOString(),
+      weekStart: weekStart.toISOString(),
+      monthStart: monthStart.toISOString()
+    });
+
+    // Calculate daily revenue
+    const dailyRevenue = await Invoice.aggregate([
+      {
+        $match: {
+          paymentDate: { $gte: today }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$totalAmount" }
+        }
+      }
+    ]);
+
+    // Calculate weekly revenue
+    const weeklyRevenue = await Invoice.aggregate([
+      {
+        $match: {
+          paymentDate: { $gte: weekStart }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$totalAmount" }
+        }
+      }
+    ]);
+
+    // Calculate monthly revenue
+    const monthlyRevenue = await Invoice.aggregate([
+      {
+        $match: {
+          paymentDate: { $gte: monthStart }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$totalAmount" }
+        }
+      }
+    ]);
+
+    const revenueStats = {
+      dailyRevenue: dailyRevenue[0]?.total || 0,
+      weeklyRevenue: weeklyRevenue[0]?.total || 0,
+      monthlyRevenue: monthlyRevenue[0]?.total || 0
+    };
+
+    console.log('Revenue statistics calculated:', revenueStats);
+
+    return {
+      success: true,
+      data: revenueStats
+    };
+
+  } catch (error) {
+    console.error('Revenue stats error:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch revenue statistics',
+      data: {
+        dailyRevenue: 0,
+        weeklyRevenue: 0,
+        monthlyRevenue: 0
+      }
+    };
+  }
+});

@@ -9,51 +9,72 @@ const Header = () => {
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  
+  // Get auth state and logout function from store
   const { 
     auth: { isAuthenticated, userRole },
     logout 
   } = useStore();
 
-  
-    const { setSpaces, setStats, setCategories } = useRoomsStore();
+  // Get store actions for updating room data
+  const { setSpaces, setStats, setCategories } = useRoomsStore();
 
+  // Handle logout process
   const handleLogout = async () => {
+    console.log('Initiating logout process');
     try {
-      // Using the directly exposed logout function
       const result = await window.electron.logout();
+      console.log('Logout response:', result);
+
       if (result.success) {
+        console.log('Logout successful, clearing store and redirecting');
         logout(); // Clear Zustand store
         navigate('/', { replace: true });
       } else {
         console.error('Logout failed:', result.message);
       }
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout error:', error);
     }
   };
 
+  // Handle data refresh
   const handleRefresh = async () => {
-    if (isRefreshing) return;
+    if (isRefreshing) {
+      console.log('Refresh already in progress, skipping');
+      return;
+    }
 
+    console.log('Starting data refresh');
     try {
       setIsRefreshing(true);
-      // Using the directly exposed refreshData function
       const result = await window.electron.getRoomData();
+      console.log('Refresh response:', {
+        success: result.success,
+        spacesCount: result.data?.spaces?.length,
+        categoriesCount: result.data?.categories?.length
+      });
       
       if (!result.success) {
         throw new Error(result.message || 'Refresh failed');
       }
 
-      if (result.success) {
-      setSpaces(result.data.spaces);
-      setCategories(result.data.categories);
-      setStats(result.data.stats);
-    }
+      // Validate and update store data
+      if (result.data) {
+        console.log('Updating store with refreshed data');
+        setSpaces(result.data.spaces || []);
+        setCategories(result.data.categories || []);
+        setStats(result.data.stats || {
+          available: 0,
+          occupied: 0,
+          maintenance: 0
+        });
+        console.log('Store update complete');
+      }
     } catch (error) {
-      console.error('Refresh failed:', error);
+      console.error('Refresh error:', error);
     } finally {
       setIsRefreshing(false);
+      console.log('Refresh process completed');
     }
   };
 
@@ -70,7 +91,7 @@ const Header = () => {
               <>
                 {userRole && (
                   <span className="text-gray-600 font-medium">
-                    Role: {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+                    Role: {userRole.charAt(0).toUpperCase() + userRole.slice(1).toLowerCase()}
                   </span>
                 )}
 
