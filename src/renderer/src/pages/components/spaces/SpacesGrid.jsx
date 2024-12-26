@@ -1,8 +1,11 @@
 // components/spaces/SpacesGrid.jsx
 import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { useRoomsStore } from '../../../store/roomsStore.js';
 import SpaceCard from './SpaceCard';
 import SearchAndFilters from './SearchAndFilters';
+import CategoryModal from '../modals/CategoryModal';
+import AddSpaceModal from '../modals/AddSpaceModal';
 import { SPACE_STATUSES, SORT_OPTIONS } from '../../../constants/space';
 
 const SpacesGrid = () => {
@@ -10,6 +13,16 @@ const SpacesGrid = () => {
   const categories = useRoomsStore(state => state.categories);
   const filters = useRoomsStore(state => state.filters);
   console.log('SpacesGrid rendering with:', { spaces, categories }); // Debug log
+
+   // Modal states
+   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+   const [showAddSpaceModal, setShowAddSpaceModal] = useState(false);
+   const [selectedCategory, setSelectedCategory] = useState(null);
+  
+   const handleAddSpace = (category) => {
+    setSelectedCategory(category);
+    setShowAddSpaceModal(true);
+  };
 
   // Apply filters
   const filterSpaces = (spaces) => {
@@ -100,17 +113,37 @@ const SpacesGrid = () => {
   return (
     <div className="space-y-6">
       <SearchAndFilters />
-    {spacesByCategory.map(({ category, spaces: categorySpaces }) => (
-      // Convert buffer to string for key
-      <div key={category._id.buffer.toString('hex')} className="bg-white p-6 rounded-lg shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">
-            {category.categoryName}
-          </h2>
-          <span className="text-sm text-gray-500">
-            {categorySpaces.length} spaces
-          </span>
-        </div>
+      {/* Add Category Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowAddCategoryModal(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 
+            transition-colors flex items-center gap-2"
+        >
+          <Plus size={16} />
+          Add Category
+        </button>
+      </div>
+      {spacesByCategory.map(({ category, spaces: categorySpaces }) => (
+        <div key={category._id.buffer.toString('hex')} className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-xl font-bold text-gray-800">
+                {category.categoryName}
+              </h2>
+              <button
+                onClick={() => handleAddSpace(category)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700
+                  transition-colors flex items-center gap-2"
+              >
+                <Plus size={16} />
+                Add Space
+              </button>
+            </div>
+            <span className="text-sm text-gray-500">
+              {categorySpaces.length} spaces
+            </span>
+          </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {categorySpaces.length === 0 ? (
@@ -135,7 +168,23 @@ const SpacesGrid = () => {
           <p className="text-center text-gray-500">
             No categories available. Create a category to add spaces.
           </p>
-        </div>
+        </div>)}
+
+{showAddCategoryModal && (
+  <CategoryModal 
+    onClose={() => setShowAddCategoryModal(false)} 
+  />
+)}
+
+{showAddSpaceModal && selectedCategory && (
+  <AddSpaceModal
+    category={selectedCategory}
+    onClose={() => {
+      setShowAddSpaceModal(false);
+      setSelectedCategory(null);
+    }}
+  />
+
       )}
     </div>
   );

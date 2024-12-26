@@ -6,6 +6,8 @@ import { initializeDatabases } from './database/dbInit';
 import connectionManager from './database/connectionManager';
 import models from './database/models';
 
+import mongoose from 'mongoose';
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -286,23 +288,43 @@ ipcMain.handle('add-category', async (_, categoryData) => {
     const { Category } = models.getOrgModels();
     
     // Check if category name already exists
-    const exists = await Category.findOne({ categoryName: categoryData.categoryName });
-    if (exists) {
-      return { success: false, message: 'Category name already exists' };
+    const existingCategory = await Category.findOne({ 
+      categoryName: categoryData.categoryName 
+    }).lean();
+
+    if (existingCategory) {
+      return { 
+        success: false, 
+        message: 'Category with this name already exists' 
+      };
     }
 
+    // Create new category
     const newCategory = await Category.create({
       ...categoryData,
       lastUpdated: new Date()
     });
+    const plainCategory = {
+      _id: newCategory._id.toString(),
+      categoryName: newCategory.categoryName,
+      lastUpdated: newCategory.lastUpdated
+    };
+
+    const allCategories = await Category.find().lean();
+
 
     return {
       success: true,
-      data: newCategory
+      data: plainCategory,
+      categories: allCategories  
     };
+
   } catch (error) {
     console.error('Add category error:', error);
-    return { success: false, message: 'Failed to add category' };
+    return { 
+      success: false, 
+      message: 'Failed to add category' 
+    };
   }
 });
 
@@ -354,33 +376,71 @@ ipcMain.handle('delete-category', async (_, categoryId) => {
 // Space Operations
 ipcMain.handle('add-space', async (_, spaceData) => {
   try {
-    const { Space } = models.getOrgModels();
-    
-    // Check if space name exists in the same category
-    const exists = await Space.findOne({ 
-      categoryId: spaceData.categoryId,
-      spaceName: spaceData.spaceName 
-    });
-    
-    if (exists) {
-      return { success: false, message: 'Space name already exists in this category' };
-    }
+      console.log('Received spaceData:', JSON.stringify(spaceData, null, 2));
 
-    const newSpace = await Space.create({
-      ...spaceData,
-      currentStatus: 'AVAILABLE',
-      lastUpdated: new Date()
-    });
+      const { Space } = models.getOrgModels();
 
-    return {
-      success: true,
-      data: newSpace
-    };
+      // Validate `categoryId`
+      if (!spaceData.categoryId) {
+          throw new Error('categoryId is required');
+      }
+
+      // Convert `categoryId` to ObjectId if it's not already a string
+      if (!mongoose.Types.ObjectId.isValid(spaceData.categoryId)) {
+          throw new Error('Invalid categoryId');
+      }
+
+      spaceData.categoryId = new mongoose.Types.ObjectId(spaceData.categoryId);
+
+      // Ensure numerical fields are properly typed
+      spaceData.basePrice = Number(spaceData.basePrice);
+      spaceData.maxOccupancy = {
+          adults: Number(spaceData.maxOccupancy.adults),
+          kids: Number(spaceData.maxOccupancy.kids),
+      };
+
+      console.log('Final spaceData after conversions:', JSON.stringify(spaceData, null, 2));
+
+      // Create the new space
+      const newSpace = await Space.create(spaceData);
+
+      console.log('Created newSpace:', JSON.stringify(newSpace.toObject(), null, 2));
+
+      // Fetch all spaces with populated categoryId
+      const allSpaces = await Space.find().populate('categoryId').lean();
+
+      // Convert `_id` fields to strings
+      const allSpacesConverted = allSpaces.map((space) => ({
+          ...space,
+          _id: space._id.toString(),
+          categoryId: space.categoryId
+              ? {
+                    ...space.categoryId,
+                    _id: space.categoryId._id.toString(),
+                }
+              : null,
+      }));
+
+      console.log('Converted allSpaces:', JSON.stringify(allSpacesConverted, null, 2));
+
+      return {
+          success: true,
+          data: newSpace.toObject(),
+          spaces: allSpacesConverted,
+      };
   } catch (error) {
-    console.error('Add space error:', error);
-    return { success: false, message: 'Failed to add space' };
+      console.error('Add space error:', error);
+
+      return {
+          success: false,
+          message: 'Failed to add space',
+          error: error.message,
+      };
   }
 });
+
+
+
 
 ipcMain.handle('delete-space', async (_, spaceId) => {
   try {
@@ -401,6 +461,48 @@ ipcMain.handle('delete-space', async (_, spaceId) => {
   } catch (error) {
     console.error('Delete space error:', error);
     return { success: false, message: 'Failed to delete space' };
+  }
+});
+
+ipcMain.handle('update-space', async (_, spaceData) => {
+  try {
+    const { Space } = models.getOrgModels();
+    
+    // Check if new name conflicts with existing space in same category
+    if (spaceData.spaceName) {
+      const exists = await Space.findOne({ 
+        categoryId: spaceData.categoryId,
+        spaceName: spaceData.spaceName,
+        _id: { $ne: spaceData._id } // Exclude current space
+      }).lean();
+      
+      if (exists) {
+        return { success: false, message: 'Space name already exists in this category' };
+      }
+    }
+
+    const updatedSpace = await Space.findByIdAndUpdate(
+      spaceData._id,
+      {
+        ...spaceData,
+        lastUpdated: new Date()
+      },
+      { new: true }
+    ).populate('categoryId');
+
+    // Get all updated spaces
+    const allSpaces = await Space.find()
+      .populate('categoryId')
+      .lean();
+
+    return {
+      success: true,
+      data: updatedSpace,
+      spaces: allSpaces
+    };
+  } catch (error) {
+    console.error('Update space error:', error);
+    return { success: false, message: 'Failed to update space' };
   }
 });
 

@@ -11,13 +11,15 @@ contextBridge.exposeInMainWorld('electron', {
   
   // Categories
   getCategories: async () => await ipcRenderer.invoke('get-categories'),
-  addCategory: async (data) => await ipcRenderer.invoke('add-category', data),
+  addCategory: (data) => ipcRenderer.invoke('add-category', data),
   updateCategory: async (data) => await ipcRenderer.invoke('update-category', data),
   deleteCategory: async (id) => await ipcRenderer.invoke('delete-category', id),
   
   // Spaces
   addSpace: async (data) => await ipcRenderer.invoke('add-space', data),
   deleteSpace: async (id) => await ipcRenderer.invoke('delete-space', id),
+  updateSpace: async (data) => await ipcRenderer.invoke('update-space', data),
+  
   
   // Revenue
   getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats'),
