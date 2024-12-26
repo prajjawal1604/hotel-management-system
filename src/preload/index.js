@@ -20,5 +20,7 @@ contextBridge.exposeInMainWorld('electron', {
   deleteSpace: async (id) => await ipcRenderer.invoke('delete-space', id),
   
   // Revenue
-  getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats')
+  getRevenueStats: () => ipcRenderer.invoke('get-revenue-stats'),
+  getOrgDetails: () => ipcRenderer.invoke('get-org-details'),
+  updateOrgDetails: (details) => ipcRenderer.invoke('update-org-details', details)
 })

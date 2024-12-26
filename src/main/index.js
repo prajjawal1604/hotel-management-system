@@ -213,7 +213,7 @@ ipcMain.handle('get-room-data', async () => {
     // Log first space as sample (if exists)
     if (spacesDoc.length > 0) {
       console.log('Sample space data:', {
-        space: spacesDoc[0],
+        space: spacesDoc,
         status: spacesDoc[0].currentStatus
       });
     }
@@ -481,6 +481,66 @@ ipcMain.handle('get-revenue-stats', async () => {
         weeklyRevenue: 0,
         monthlyRevenue: 0
       }
+    };
+  }
+});
+
+ipcMain.handle('get-org-details', async () => {
+  try {
+    const { Organization } = models.getMasterModels();
+    const org = await Organization.findOne({ orgName: "Maa Mangala Residency" });
+
+    if (!org) {
+      return { 
+        success: false, 
+        message: 'Organization not found' 
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        orgName: org.orgName,
+        email: org.email,
+        gstNumber: org.gstNumber,
+        gst: org.gst
+      }
+    };
+  } catch (error) {
+    console.error('Get org details error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to fetch organization details' 
+    };
+  }
+});
+
+ipcMain.handle('update-org-details', async (_, details) => {
+  try {
+    const { Organization } = models.getMasterModels();
+    const updatedOrg = await Organization.findOneAndUpdate(
+      { orgName: "Maa Mangala Residency" },  
+      { 
+        ...details,
+        lastUpdated: new Date() 
+      },
+      { new: true }
+    );
+
+    return {
+      success: true,
+      data: {
+        orgName: updatedOrg.orgName,
+        email: updatedOrg.email,
+        gstNumber: updatedOrg.gstNumber,
+        gst: updatedOrg.gst
+      }
+    };
+  } catch (error) {
+    console.error('Update org details error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to update organization details' 
     };
   }
 });

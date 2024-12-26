@@ -18,6 +18,17 @@ export const useRoomsStore = create((set) => ({
     weeklyRevenue: 0,
     monthlyRevenue: 0
   },
+  orgDetails: {
+    orgName: null,
+    email: null,
+    gstNumber: null,
+    gst: null
+  },
+
+  setOrgDetails: (details) => set(state => ({
+    orgDetails: { ...state.orgDetails, ...details }
+  })),
+
 
   setRevenueStats: (stats) => set((state) => ({
     revenueStats: { ...state.revenueStats, ...stats }
