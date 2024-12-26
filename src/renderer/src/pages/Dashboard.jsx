@@ -12,27 +12,31 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchRoomData = async () => {
       try {
-        const result = await window.electron.getRoomData();
-        const orgResult = await window.electron.getOrgDetails();
-        if (result.success) {
-          // Update store with fetched data
-          setSpaces(result.data.spaces);
-          setCategories(result.data.categories);
-          setStats(result.data.stats);
-          setOrgDetails(orgResult.data);
+        const [roomResult, orgResult] = await Promise.all([
+          window.electron.getRoomData(),
+          window.electron.getOrgDetails()
+        ]);
 
-        } else {
-          console.error('Failed to fetch room data:', result.message);
+        // Handle room data
+        if (roomResult.success) {
+          setSpaces(roomResult.data.spaces);
+          setCategories(roomResult.data.categories);
+          setStats(roomResult.data.stats);
+        }
+
+        // Handle org data
+        if (orgResult.success) {
+          setOrgDetails(orgResult.data);
         }
       } catch (error) {
-        console.error('Error fetching room data:', error);
+        console.error('Error fetching data:', error);
       }
     };
 
     if (isAuthenticated) {
       fetchRoomData();
     }
-  }, [isAuthenticated, setSpaces, setCategories, setStats]);
+  }, [isAuthenticated, setSpaces, setCategories, setStats, setOrgDetails]);
 
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;

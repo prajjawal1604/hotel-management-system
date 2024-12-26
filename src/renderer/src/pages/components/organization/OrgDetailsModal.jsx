@@ -1,11 +1,11 @@
 // components/organization/OrgDetailsModal.jsx
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { useStore } from '../../../store/useStore';
+import { useRoomsStore } from '../../../store/roomsStore';
 
 const OrgDetailsModal = ({ onClose }) => {
-  const orgDetails = useStore(state => state.orgDetails)||{};
-  const setOrgDetails = useStore(state => state.setOrgDetails);
+  const orgDetails = useRoomsStore(state => state.orgDetails)||{};
+  const setOrgDetails = useRoomsStore(state => state.setOrgDetails);
   
   const [formData, setFormData] = useState({
     orgName: orgDetails.orgName || '',
