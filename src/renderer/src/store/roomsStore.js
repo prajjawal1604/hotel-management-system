@@ -43,7 +43,18 @@ export const useRoomsStore = create((set) => ({
       return space;
     });
     console.log('Storing validated spaces:', validatedSpaces);
-    set({ spaces: validatedSpaces });
+    
+    // Calculate and update stats automatically when spaces are updated
+    const stats = {
+      available: validatedSpaces.filter(space => space.currentStatus === 'AVAILABLE').length,
+      occupied: validatedSpaces.filter(space => space.currentStatus === 'OCCUPIED').length,
+      maintenance: validatedSpaces.filter(space => space.currentStatus === 'MAINTENANCE').length
+    };
+    
+    set({ 
+      spaces: validatedSpaces,
+      stats
+    });
   },
 
   setCategories: (categories) => {

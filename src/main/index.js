@@ -122,10 +122,18 @@ ipcMain.handle('login', async (_, credentials) => {
     // Find user in org database
     const { User } = models.getOrgModels();
     const isEmail = identifier.includes('@');
-    const query = isEmail ? { email: identifier, role } : { username: identifier, role };
+    const query = isEmail 
+      ? { email: identifier, role: role.toUpperCase() } 
+      : { username: identifier, role: role.toUpperCase() };
     
     console.log('Looking up user with query:', query);
+    
+    // Debug: Log all users
+    const allUsers = await User.find().lean();
+    console.log('All users in database:', allUsers);
+
     const user = await User.findOne(query).lean();
+    console.log('Found user:', user);
 
     // Validate user exists and password matches
     if (!user || user.password !== password) {
@@ -547,7 +555,7 @@ ipcMain.handle('add-space', async (_, spaceData) => {
  * Process:
  * 1. Check for name conflicts
  * 2. Update space
- * 3. Return updated space list
+ * 3. Return updated space list and stats
  */
 ipcMain.handle('update-space', async (_, spaceData) => {
   try {
@@ -563,12 +571,11 @@ ipcMain.handle('update-space', async (_, spaceData) => {
       }).lean();
       
       if (exists) {
-        console.log('Space name conflict found in category:', spaceData.categoryId);
         return { success: false, message: 'Space name already exists in this category' };
       }
     }
 
-    // Update space
+    // Update space directly with findByIdAndUpdate
     const updatedSpace = await Space.findByIdAndUpdate(
       spaceData._id,
       {
@@ -576,18 +583,21 @@ ipcMain.handle('update-space', async (_, spaceData) => {
         lastUpdated: new Date()
       },
       { new: true }
-    )
-    .populate('categoryId')
-    .lean();
+    ).lean();
 
-    console.log('Space updated:', JSON.stringify(updatedSpace, null, 2));
+    if (!updatedSpace) {
+      throw new Error('Space not found');
+    }
 
-    // Fetch updated space list
-    const allSpaces = await Space.find()
-      .populate('categoryId')
-      .lean();
+    // Fetch all spaces
+    const allSpaces = await Space.find().lean();
 
-    console.log(`Total spaces after update: ${allSpaces.length}`);
+    // Calculate updated stats
+    const stats = {
+      available: allSpaces.filter(space => space.currentStatus === 'AVAILABLE').length,
+      occupied: allSpaces.filter(space => space.currentStatus === 'OCCUPIED').length,
+      maintenance: allSpaces.filter(space => space.currentStatus === 'MAINTENANCE').length
+    };
 
     return {
       success: true,
@@ -606,11 +616,12 @@ ipcMain.handle('update-space', async (_, spaceData) => {
           ...space.categoryId,
           _id: space.categoryId._id.toString()
         }
-      }))
+      })),
+      stats  // Include the updated stats in the response
     };
   } catch (error) {
     console.error('Update space error:', error);
-    return { success: false, message: 'Failed to update space' };
+    return { success: false, message: error.message || 'Failed to update space' };
   }
 });
 

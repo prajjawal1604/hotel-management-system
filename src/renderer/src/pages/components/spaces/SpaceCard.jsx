@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useRoomsStore } from '../../../store/roomsStore';
 import ConfirmationModal from '../modals/ConfirmationModal';
+import RoomDetailsModal from '../modals/RoomDetailsModal';
+import GuestDetailsModal from '../modals/GuestDetailsModal.jsx';
 
 const STATUS_COLORS = {
   'AVAILABLE': {
@@ -23,6 +25,8 @@ const STATUS_COLORS = {
 
 const SpaceCard = ({ space, category }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRoomDetails, setShowRoomDetails] = useState(false);
+  const [showGuestDetails, setShowGuestDetails] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -60,47 +64,60 @@ const SpaceCard = ({ space, category }) => {
     });
   };
 
+  const handleCardClick = () => {
+    if (space.currentStatus === 'OCCUPIED') {
+      setShowGuestDetails(true);
+    } else {
+      setShowRoomDetails(true);
+    }
+  };
+
   return (
-    <div className={`rounded-lg p-4 border-2 transition-all ${statusStyles[space.currentStatus]}`}>
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-semibold text-gray-800 text-lg">{space.spaceName}</h3>
-          <p className="text-sm text-gray-600 mt-1">{space.spaceType}</p>
-          <p className="text-sm font-medium text-gray-700 mt-2">
-            ₹{space.basePrice}
-          </p>
-        </div>
-        {canDelete && (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="p-1.5 text-gray-600 hover:bg-white rounded-full transition-colors"
-            title="Delete Space"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
-      </div>
-
-      {/* Status Tag and Guest Details */}
-      <div className="mt-3">
-        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium
-          ${space.currentStatus === 'AVAILABLE' ? 'bg-green-200 text-green-800' :
-            space.currentStatus === 'OCCUPIED' ? 'bg-red-200 text-red-800' :
-            'bg-gray-200 text-gray-800'}`}>
-          {space.currentStatus}
-        </span>
-
-        {space.currentStatus === 'OCCUPIED' && space.bookingId && (
-          <div className="mt-2 text-sm">
-            <p className="text-gray-700 font-medium">
-              Guest: {space.bookingId.primaryGuest?.name || 'N/A'}
+    <>
+      <div 
+        className={`rounded-lg p-4 border-2 transition-all cursor-pointer ${statusStyles[space.currentStatus]}`}
+        onClick={handleCardClick}
+      >
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-semibold text-gray-800 text-lg">{space.spaceName}</h3>
+            <p className="text-sm text-gray-600 mt-1">{space.spaceType}</p>
+            <p className="text-sm font-medium text-gray-700 mt-2">
+              ₹{space.basePrice}
             </p>
-            <div className="flex justify-between mt-1 text-gray-600">
-              <span>In: {formatDate(space.bookingId.checkIn)}</span>
-              <span>Out: {formatDate(space.bookingId.checkOut)}</span>
-            </div>
           </div>
-        )}
+          {canDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-1.5 text-gray-600 hover:bg-white rounded-full transition-colors"
+              title="Delete Space"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Status Tag and Guest Details */}
+        <div className="mt-3">
+          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium
+            ${space.currentStatus === 'AVAILABLE' ? 'bg-green-200 text-green-800' :
+              space.currentStatus === 'OCCUPIED' ? 'bg-red-200 text-red-800' :
+              'bg-gray-200 text-gray-800'}`}>
+            {space.currentStatus}
+          </span>
+
+          {space.currentStatus === 'OCCUPIED' && space.bookingId && (
+            <div className="mt-2 text-sm">
+              <p className="text-gray-700 font-medium">
+                Guest: {space.bookingId.primaryGuest?.name || 'N/A'}
+              </p>
+              <div className="flex justify-between mt-1 text-gray-600">
+                <span>In: {formatDate(space.bookingId.checkIn)}</span>
+                <span>Out: {formatDate(space.bookingId.checkOut)}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {showDeleteConfirm && (
@@ -111,7 +128,21 @@ const SpaceCard = ({ space, category }) => {
           onCancel={() => setShowDeleteConfirm(false)}
         />
       )}
-    </div>
+
+      {showRoomDetails && (
+        <RoomDetailsModal
+          space={space}
+          onClose={() => setShowRoomDetails(false)}
+        />
+      )}
+
+      {showGuestDetails && (
+        <GuestDetailsModal
+          guest={space.currentGuest}
+          onClose={() => setShowGuestDetails(false)}
+        />
+      )}
+    </>
   );
 };
 
