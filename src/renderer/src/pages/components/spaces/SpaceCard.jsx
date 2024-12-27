@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useRoomsStore } from '../../../store/roomsStore';
+import { useStore } from '../../../store/useStore'; // Add this import
 import ConfirmationModal from '../modals/ConfirmationModal';
 import RoomDetailsModal from '../modals/RoomDetailsModal';
 import GuestDetailsModal from '../modals/GuestDetailsModal.jsx';
+import BookingContainer from '../containers/BookingContainer';
 
 const STATUS_COLORS = {
   'AVAILABLE': {
@@ -27,6 +29,7 @@ const SpaceCard = ({ space, category }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRoomDetails, setShowRoomDetails] = useState(false);
   const [showGuestDetails, setShowGuestDetails] = useState(false);
+  const [showBookingContainer, setShowBookingContainer] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -46,6 +49,8 @@ const SpaceCard = ({ space, category }) => {
   };
 
   const canDelete = ['AVAILABLE', 'MAINTENANCE'].includes(space.currentStatus);
+  const userRole = useStore(state => state.user?.role);
+  const isAdmin = userRole === 'admin';
 
   // Status-based styling
   const statusStyles = {
@@ -65,10 +70,14 @@ const SpaceCard = ({ space, category }) => {
   };
 
   const handleCardClick = () => {
-    if (space.currentStatus === 'OCCUPIED') {
-      setShowGuestDetails(true);
+    if (!isAdmin) {
+      setShowBookingContainer(true);
     } else {
-      setShowRoomDetails(true);
+      if (space.currentStatus === 'OCCUPIED') {
+        setShowGuestDetails(true);
+      } else {
+        setShowRoomDetails(true);
+      }
     }
   };
 
@@ -81,17 +90,20 @@ const SpaceCard = ({ space, category }) => {
         <div className="flex justify-between items-start">
           <div>
             <h3 className="font-semibold text-gray-800 text-lg">{space.spaceName}</h3>
-            <p className="text-sm text-gray-600 mt-1">{space.spaceType}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              {category?.name || category?.id || space.spaceType || 'Uncategorized'}
+            </p>
             <p className="text-sm font-medium text-gray-700 mt-2">
               ₹{space.basePrice}
             </p>
           </div>
-          {canDelete && (
+          {/* Only show delete button for admin */}
+          {isAdmin && canDelete && (
             <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowDeleteConfirm(true);
-            }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDeleteConfirm(true);
+              }}
               className="p-1.5 text-gray-600 hover:bg-white rounded-full transition-colors"
               title="Delete Space"
             >
@@ -123,7 +135,8 @@ const SpaceCard = ({ space, category }) => {
         </div>
       </div>
 
-      {showDeleteConfirm && (
+      {/* Only show delete confirmation for admin */}
+      {isAdmin && showDeleteConfirm && (
         <ConfirmationModal
           title="Delete Space"
           message={`Are you sure you want to delete ${space.spaceName}? This action cannot be undone.`}
@@ -132,17 +145,29 @@ const SpaceCard = ({ space, category }) => {
         />
       )}
 
-      {showRoomDetails && (
-        <RoomDetailsModal
+      {/* Add BookingContainer modal */}
+      {showBookingContainer && (
+        <BookingContainer
           space={space}
-          onClose={() => setShowRoomDetails(false)}
+          category={category}
+          onClose={() => setShowBookingContainer(false)}
         />
       )}
 
-      {showGuestDetails && (
+      {/* Modify existing modals to only show for admin */}
+      {!userRole === 'frontoffice' && showRoomDetails && (
+        <RoomDetailsModal
+          space={space}
+          onClose={() => setShowRoomDetails(false)}
+          isAdmin={isAdmin}
+        />
+      )}
+
+      {!userRole === 'frontoffice' && showGuestDetails && (
         <GuestDetailsModal
           guest={space.currentGuest}
           onClose={() => setShowGuestDetails(false)}
+          isAdmin={isAdmin}
         />
       )}
     </>

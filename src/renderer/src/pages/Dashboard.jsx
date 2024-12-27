@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { useRoomsStore } from '../store/roomsStore';
 import AdminDashboard from './AdminDashboard';
+import FrontOfficeDashboard from './FrontOfficeDashboard';
 
 const Dashboard = () => {
   const { auth: { isAuthenticated, userRole } } = useStore();
@@ -53,8 +54,7 @@ const Dashboard = () => {
       {userRole === 'ADMIN' ? (
         <AdminDashboard />
       ) : (
-        // <FrontOfficeDashboard />
-        <></>
+        <FrontOfficeDashboard />
       )}
     </div>
   );

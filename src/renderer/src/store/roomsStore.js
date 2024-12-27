@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /**
- * RoomsStore - Manages hotel rooms, categories, and related data state
+ * RoomsStore - Manages hotel rooms, bookings, categories, and related data state
  */
 export const useRoomsStore = create((set) => ({
   // Base State
@@ -28,11 +28,12 @@ export const useRoomsStore = create((set) => ({
     gstNumber: null,    // GST registration number
     gst: null          // GST percentage
   },
+  activeBooking: null,  // Current active booking being managed
+  bookingError: null,   // Store any booking-related errors
 
   // Actions
   setSpaces: (spaces) => {
     console.log('Received spaces data:', spaces);
-    // Validate IDs are strings (MongoDB ObjectId conversion check)
     const validatedSpaces = spaces.map(space => {
       if (typeof space._id !== 'string') {
         console.error('Invalid space ID format:', space._id, 'for space:', space.spaceName);
@@ -42,78 +43,164 @@ export const useRoomsStore = create((set) => ({
       }
       return space;
     });
-    console.log('Storing validated spaces:', validatedSpaces);
     
-    // Calculate and update stats automatically when spaces are updated
     const stats = {
       available: validatedSpaces.filter(space => space.currentStatus === 'AVAILABLE').length,
       occupied: validatedSpaces.filter(space => space.currentStatus === 'OCCUPIED').length,
       maintenance: validatedSpaces.filter(space => space.currentStatus === 'MAINTENANCE').length
     };
     
-    set({ 
-      spaces: validatedSpaces,
-      stats
-    });
+    set({ spaces: validatedSpaces, stats });
   },
 
   setCategories: (categories) => {
-    console.log('Received categories data:', categories);
-    // Validate category IDs are strings
     const validatedCategories = categories.map(category => {
       if (typeof category._id !== 'string') {
         console.error('Invalid category ID format:', category._id, 'for category:', category.categoryName);
       }
       return category;
     });
-    console.log('Storing validated categories:', validatedCategories);
     set({ categories: validatedCategories });
   },
 
-  // Update room statistics
-  setStats: (stats) => {
-    console.log('Updating room statistics:', stats);
-    set({ stats });
-  },
+  setStats: (stats) => set({ stats }),
+  
+  setFilters: (filters) => set(state => ({
+    filters: { ...state.filters, ...filters }
+  })),
 
-  // Update filter settings
-  setFilters: (filters) => {
-    console.log('Applying new filters:', filters);
-    set((state) => ({
-      filters: { ...state.filters, ...filters }
-    }));
-  },
+  resetFilters: () => set({
+    filters: {
+      search: '',
+      status: 'all',
+      sort: 'default'
+    }
+  }),
 
-  // Reset filters to default values
-  resetFilters: () => {
-    console.log('Resetting filters to default');
-    set({
-      filters: {
-        search: '',
-        status: 'all',
-        sort: 'default'
-      }
-    });
-  },
+  setRevenueStats: (stats) => set(state => ({
+    revenueStats: { ...state.revenueStats, ...stats }
+  })),
 
-  // Update revenue statistics
-  setRevenueStats: (stats) => {
-    console.log('Updating revenue statistics:', stats);
-    set((state) => ({
-      revenueStats: { ...state.revenueStats, ...stats }
-    }));
-  },
-
-  // Update organization details
   setOrgDetails: (details) => {
-    console.log('Received organization details update:', details);
-    // Validate organization ID is string
     if (details._id && typeof details._id !== 'string') {
       console.error('Invalid organization ID format:', details._id);
     }
-    console.log('Updating organization details');
     set(state => ({
       orgDetails: { ...state.orgDetails, ...details }
     }));
-  }
+  },
+
+  // Booking Actions
+  setActiveBooking: (booking) => {
+    console.log('Setting active booking:', booking);
+    set({ 
+      activeBooking: booking,
+      bookingError: null 
+    });
+  },
+
+  clearActiveBooking: () => {
+    console.log('Clearing active booking');
+    set({ 
+      activeBooking: null,
+      bookingError: null 
+    });
+  },
+
+  updateSpaceWithBooking: (spaceId, bookingData) => set(state => {
+    console.log('Updating space with booking:', spaceId, bookingData);
+    const updatedSpaces = state.spaces.map(space => {
+      if (space._id === spaceId) {
+        return {
+          ...space,
+          currentStatus: 'OCCUPIED',
+          bookingId: bookingData
+        };
+      }
+      return space;
+    });
+
+    const stats = {
+      available: updatedSpaces.filter(s => s.currentStatus === 'AVAILABLE').length,
+      occupied: updatedSpaces.filter(s => s.currentStatus === 'OCCUPIED').length,
+      maintenance: updatedSpaces.filter(s => s.currentStatus === 'MAINTENANCE').length
+    };
+
+    return {
+      spaces: updatedSpaces,
+      stats,
+      activeBooking: bookingData
+    };
+  }),
+
+  updateBookingServices: (services) => set(state => {
+    if (!state.activeBooking) return state;
+
+    return {
+      activeBooking: {
+        ...state.activeBooking,
+        services
+      }
+    };
+  }),
+
+  completeBooking: (spaceId) => set(state => {
+    console.log('Completing booking for space:', spaceId);
+    const updatedSpaces = state.spaces.map(space => {
+      if (space._id === spaceId) {
+        return {
+          ...space,
+          currentStatus: 'AVAILABLE',
+          bookingId: null
+        };
+      }
+      return space;
+    });
+
+    const stats = {
+      available: updatedSpaces.filter(s => s.currentStatus === 'AVAILABLE').length,
+      occupied: updatedSpaces.filter(s => s.currentStatus === 'OCCUPIED').length,
+      maintenance: updatedSpaces.filter(s => s.currentStatus === 'MAINTENANCE').length
+    };
+
+    return {
+      spaces: updatedSpaces,
+      stats,
+      activeBooking: null,
+      bookingError: null
+    };
+  }),
+
+  cancelBooking: (spaceId, reason) => set(state => {
+    console.log('Cancelling booking for space:', spaceId);
+    const updatedSpaces = state.spaces.map(space => {
+      if (space._id === spaceId) {
+        return {
+          ...space,
+          currentStatus: 'AVAILABLE',
+          bookingId: null
+        };
+      }
+      return space;
+    });
+
+    const stats = {
+      available: updatedSpaces.filter(s => s.currentStatus === 'AVAILABLE').length,
+      occupied: updatedSpaces.filter(s => s.currentStatus === 'OCCUPIED').length,
+      maintenance: updatedSpaces.filter(s => s.currentStatus === 'MAINTENANCE').length
+    };
+
+    return {
+      spaces: updatedSpaces,
+      stats,
+      activeBooking: null,
+      bookingError: null
+    };
+  }),
+
+  setBookingError: (error) => set({
+    bookingError: error
+  })
 }));
+
+export default useRoomsStore;

@@ -908,3 +908,378 @@ ipcMain.handle('get-revenue-stats', async () => {
     };
   }
 });
+
+// Booking Operations
+
+/**
+ * Create Booking Handler
+ * Process:
+ * 1. Create primary guest record
+ * 2. Create additional guest records if any
+ * 3. Create booking record linking everything
+ * 4. Update space status and link booking
+ */
+ipcMain.handle('create-booking', async (_, bookingData) => {
+  try {
+    console.log('Creating new booking:', JSON.stringify(bookingData, null, 2));
+    const { Space, PrimaryGuest, AdditionalGuest, Booking } = models.getOrgModels();
+
+    // Create primary guest
+    const primaryGuest = await PrimaryGuest.create({
+      fullName: bookingData.fullName,
+      phoneNumber: bookingData.phoneNumber,
+      gender: bookingData.gender,
+      age: Number(bookingData.age),
+      aadharNumber: bookingData.aadharNumber,
+      nationality: bookingData.nationality,
+      address: bookingData.address,
+      companyName: bookingData.companyName || null,
+      gstin: bookingData.gstin || null,
+      designation: bookingData.designation || null,
+      purposeOfVisit: bookingData.purposeOfVisit || null
+    });
+
+    // Create additional guests if any
+    const additionalGuestIds = [];
+    if (bookingData.additionalGuests?.length > 0) {
+      const additionalGuests = await AdditionalGuest.insertMany(
+        bookingData.additionalGuests.map(guest => ({
+          fullName: guest.fullName,
+          phoneNumber: guest.phoneNumber,
+          gender: guest.gender,
+          age: Number(guest.age),
+          aadharNumber: guest.aadharNumber,
+          isKid: guest.isKid || false
+        }))
+      );
+      additionalGuestIds.push(...additionalGuests.map(g => g._id));
+    }
+
+    // Create booking record
+    const booking = await Booking.create({
+      spaceId: bookingData.spaceId,
+      guestId: primaryGuest._id,
+      additionalGuestIds,
+      checkIn: new Date(bookingData.checkIn),
+      checkOut: new Date(bookingData.checkOut),
+      bookingType: 'CURRENT',
+      status: 'ONGOING',
+      serviceIds: [] // Initially empty, will be added later
+    });
+
+    // Update space status and link booking
+    await Space.findByIdAndUpdate(bookingData.spaceId, {
+      currentStatus: 'OCCUPIED',
+      bookingId: booking._id,
+      lastUpdated: new Date()
+    });
+
+    return {
+      success: true,
+      data: {
+        ...booking.toObject(),
+        _id: booking._id.toString(),
+        guestId: primaryGuest._id.toString(),
+        additionalGuestIds: additionalGuestIds.map(id => id.toString())
+      }
+    };
+
+  } catch (error) {
+    console.error('Create booking error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+/**
+ * Get Booking Handler
+ * Retrieves booking details with all related data
+ */
+ipcMain.handle('get-booking', async (_, spaceId) => {
+  try {
+    console.log('Fetching booking for space:', spaceId);
+    const { Space, Booking, PrimaryGuest, AdditionalGuest, Service } = models.getOrgModels();
+
+    const space = await Space.findById(spaceId)
+      .populate({
+        path: 'bookingId',
+        populate: [
+          { path: 'guestId' },
+          { path: 'additionalGuestIds' },
+          { path: 'serviceIds' }
+        ]
+      })
+      .lean();
+
+    if (!space || !space.bookingId) {
+      return { 
+        success: false, 
+        message: 'No active booking found' 
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        ...space.bookingId,
+        _id: space.bookingId._id.toString(),
+        spaceId: space.bookingId.spaceId.toString(),
+        guestId: {
+          ...space.bookingId.guestId,
+          _id: space.bookingId.guestId._id.toString()
+        },
+        additionalGuestIds: space.bookingId.additionalGuestIds.map(guest => ({
+          ...guest,
+          _id: guest._id.toString()
+        })),
+        serviceIds: space.bookingId.serviceIds.map(service => ({
+          ...service,
+          _id: service._id.toString()
+        }))
+      }
+    };
+
+  } catch (error) {
+    console.error('Get booking error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+/**
+ * Update Booking Services Handler
+ * Add or update services for an existing booking
+ */
+ipcMain.handle('update-booking-services', async (_, { bookingId, services }) => {
+  try {
+    console.log('Updating services for booking:', bookingId);
+    const { Booking, Service } = models.getOrgModels();
+
+    // Create new services
+    const createdServices = await Service.insertMany(
+      services.map(service => ({
+        serviceName: service.serviceName,
+        serviceType: service.serviceType,
+        units: service.units,
+        costPerUnit: service.costPerUnit,
+        remarks: service.remarks
+      }))
+    );
+
+    // Update booking with new service IDs
+    const booking = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        $push: { serviceIds: { $each: createdServices.map(s => s._id) } }
+      },
+      { new: true }
+    )
+    .populate('serviceIds')
+    .lean();
+
+    return {
+      success: true,
+      data: {
+        ...booking,
+        _id: booking._id.toString(),
+        serviceIds: booking.serviceIds.map(service => ({
+          ...service,
+          _id: service._id.toString()
+        }))
+      }
+    };
+
+  } catch (error) {
+    console.error('Update services error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+/**
+ * Calculate Checkout Amount Handler
+ * Calculates final bill with room charges, services, and GST
+ */
+ipcMain.handle('calculate-checkout', async (_, bookingId) => {
+  try {
+    console.log('Calculating checkout amount for booking:', bookingId);
+    const { Booking, Space } = models.getOrgModels();
+
+    const booking = await Booking.findById(bookingId)
+      .populate('spaceId')
+      .populate('serviceIds')
+      .lean();
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // Calculate room charges based on 8am policy
+    const checkIn = new Date(booking.checkIn);
+    const checkOut = new Date(booking.checkOut);
+    
+    const normalizeDate = date => {
+      const normalized = new Date(date);
+      normalized.setHours(8, 0, 0, 0);
+      return normalized;
+    };
+
+    let days = Math.ceil(
+      (normalizeDate(checkOut) - normalizeDate(checkIn)) / 
+      (1000 * 60 * 60 * 24)
+    );
+
+    if (checkOut.getHours() >= 8) {
+      days += 1;
+    }
+
+    const roomCharges = days * booking.spaceId.basePrice;
+
+    // Calculate service charges
+    const serviceCharges = booking.serviceIds.reduce(
+      (total, service) => total + (service.units * service.costPerUnit), 
+      0
+    );
+
+    // Calculate GST
+    const subtotal = roomCharges + serviceCharges;
+    const gstAmount = subtotal * (booking.spaceId.gstPercentage / 100);
+
+    return {
+      success: true,
+      data: {
+        roomCharges,
+        serviceCharges,
+        gstAmount,
+        totalAmount: subtotal + gstAmount,
+        breakdown: {
+          days,
+          baseRate: booking.spaceId.basePrice,
+          servicesBreakdown: booking.serviceIds,
+          checkInTime: checkIn,
+          checkOutTime: checkOut
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('Calculate checkout error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+/**
+ * Complete Checkout Handler
+ * Finalizes booking, creates invoice, and updates space status
+ */
+ipcMain.handle('complete-checkout', async (_, checkoutData) => {
+  try {
+    console.log('Processing checkout:', JSON.stringify(checkoutData, null, 2));
+    const { Booking, Space, Invoice } = models.getOrgModels();
+
+    // Create invoice
+    const invoice = await Invoice.create({
+      bookingId: checkoutData.bookingId,
+      totalAmount: checkoutData.totalAmount,
+      paymentDate: new Date()
+    });
+
+    // Update booking status
+    await Booking.findByIdAndUpdate(checkoutData.bookingId, {
+      status: 'COMPLETED',
+      modeOfPayment: checkoutData.modeOfPayment
+    });
+
+    // Update space status
+    await Space.findByIdAndUpdate(checkoutData.spaceId, {
+      currentStatus: 'AVAILABLE',
+      bookingId: null,
+      lastUpdated: new Date()
+    });
+
+    return {
+      success: true,
+      data: {
+        ...invoice.toObject(),
+        _id: invoice._id.toString(),
+        bookingId: invoice.bookingId.toString()
+      }
+    };
+
+  } catch (error) {
+    console.error('Complete checkout error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+/**
+ * Cancel Booking Handler
+ * Process:
+ * 1. Validate booking can be cancelled
+ * 2. Update booking status
+ * 3. Reset space status
+ * 4. Return updated data
+ */
+ipcMain.handle('cancel-booking', async (_, { bookingId, reason }) => {
+  try {
+    console.log('Cancelling booking:', bookingId, 'Reason:', reason);
+    const { Booking, Space } = models.getOrgModels();
+
+    // Get booking with space details
+    const booking = await Booking.findById(bookingId)
+      .populate('spaceId')
+      .lean();
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    if (booking.status === 'COMPLETED') {
+      throw new Error('Cannot cancel a completed booking');
+    }
+
+    // Update booking status
+    await Booking.findByIdAndUpdate(bookingId, {
+      status: 'CANCELLED',
+      cancellationReason: reason,
+      cancelledAt: new Date()
+    });
+
+    // Reset space status
+    await Space.findByIdAndUpdate(booking.spaceId._id, {
+      currentStatus: 'AVAILABLE',
+      bookingId: null,
+      lastUpdated: new Date()
+    });
+
+    // Get updated space data
+    const updatedSpace = await Space.findById(booking.spaceId._id)
+      .populate('categoryId')
+      .lean();
+
+    // Calculate updated stats
+    const allSpaces = await Space.find().lean();
+    const stats = {
+      available: allSpaces.filter(s => s.currentStatus === 'AVAILABLE').length,
+      occupied: allSpaces.filter(s => s.currentStatus === 'OCCUPIED').length,
+      maintenance: allSpaces.filter(s => s.currentStatus === 'MAINTENANCE').length
+    };
+
+    return {
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: {
+        space: {
+          ...updatedSpace,
+          _id: updatedSpace._id.toString(),
+          categoryId: {
+            ...updatedSpace.categoryId,
+            _id: updatedSpace.categoryId._id.toString()
+          }
+        },
+        stats
+      }
+    };
+
+  } catch (error) {
+    console.error('Cancel booking error:', error);
+    return { success: false, message: error.message };
+  }
+});

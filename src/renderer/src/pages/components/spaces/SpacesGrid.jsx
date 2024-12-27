@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useRoomsStore } from '../../../store/roomsStore.js';
+import { useStore } from '../../../store/useStore.js'; // Fix: Correct import
 import SpaceCard from './SpaceCard';
 import SearchAndFilters from './SearchAndFilters';
 import CategoryModal from '../modals/CategoryModal';
@@ -13,6 +14,8 @@ const SpacesGrid = () => {
   const spaces = useRoomsStore(state => state.spaces);
   const categories = useRoomsStore(state => state.categories);
   const filters = useRoomsStore(state => state.filters);
+  const role = useStore(state => state.user?.role); // Fix: Get role from useStore
+  const isAdmin = role === 'ADMIN'; // Check against 'ADMIN' role
 
   // Debug logs for store data
   useEffect(() => {
@@ -151,17 +154,19 @@ const SpacesGrid = () => {
     <div className="space-y-6">
       <SearchAndFilters />
       
-      {/* Add Category Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowAddCategoryModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 
-            transition-colors flex items-center gap-2"
-        >
-          <Plus size={16} />
-          Add Category
-        </button>
-      </div>
+      {/* Only show Add Category button for admin */}
+      {isAdmin && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowAddCategoryModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 
+              transition-colors flex items-center gap-2"
+          >
+            <Plus size={16} />
+            Add Category
+          </button>
+        </div>
+      )}
 
       {/* Category Sections */}
       {spacesByCategory.map(({ category, spaces: categorySpaces }) => (
@@ -171,26 +176,32 @@ const SpacesGrid = () => {
               <h2 className="text-xl font-bold text-gray-800">
                 {category.categoryName}
               </h2>
-              <button
-                onClick={() => handleAddSpace(category)}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700
-                  transition-colors flex items-center gap-2"
-              >
-                <Plus size={16} />
-                Add Space
-              </button>
+              {/* Only show Add Space button for admin */}
+              {isAdmin && (
+                <button
+                  onClick={() => handleAddSpace(category)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700
+                    transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} />
+                  Add Space
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-500">
                 {categorySpaces.length} spaces
               </span>
-              <button
-                onClick={() => setCategoryToDelete(category)}
-                className="p-2 text-red-600 hover:text-red-700 transition-colors"
-                title="Delete Category"
-              >
-                <Trash2 size={18} />
-              </button>
+              {/* Only show Delete Category button for admin */}
+              {isAdmin && (
+                <button
+                  onClick={() => setCategoryToDelete(category)}
+                  className="p-2 text-red-600 hover:text-red-700 transition-colors"
+                  title="Delete Category"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -219,34 +230,32 @@ const SpacesGrid = () => {
         </div>
       )}
 
-      {/* Modals */}
-      {showAddCategoryModal && (
-        <CategoryModal 
-          onClose={() => setShowAddCategoryModal(false)} 
-        />
-      )}
+      {/* Only render admin modals if user is admin */}
+      {isAdmin && (
+        <>
+          {showAddCategoryModal && (
+            <CategoryModal onClose={() => setShowAddCategoryModal(false)} />
+          )}
 
-      {showAddSpaceModal && selectedCategory && (
-        <AddSpaceModal
-          category={selectedCategory}
-          onClose={() => {
-            setShowAddSpaceModal(false);
-            setSelectedCategory(null);
-          }}
-        />
-      )}
+          {showAddSpaceModal && selectedCategory && (
+            <AddSpaceModal
+              category={selectedCategory}
+              onClose={() => {
+                setShowAddSpaceModal(false);
+                setSelectedCategory(null);
+              }}
+            />
+          )}
 
-      {categoryToDelete && (
-        <ConfirmationModal
-          title="Delete Category"
-          message={`Are you sure you want to delete ${categoryToDelete.categoryName}? This action cannot be undone.${
-            spacesByCategory.find(({category}) => category._id === categoryToDelete._id)?.spaces.length > 0
-              ? ' You must first delete or move all spaces in this category.'
-              : ''
-          }`}
-          onConfirm={handleDeleteCategory}
-          onCancel={() => setCategoryToDelete(null)}
-        />
+          {categoryToDelete && (
+            <ConfirmationModal
+              title="Delete Category"
+              message={`Are you sure you want to delete ${categoryToDelete.categoryName}?`}
+              onConfirm={handleDeleteCategory}
+              onCancel={() => setCategoryToDelete(null)}
+            />
+          )}
+        </>
       )}
     </div>
   );

@@ -4,7 +4,6 @@ import RoomStatusLegend from './components/RoomStatusLegend.jsx';
 import SpacesGrid from './components/spaces/SpacesGrid.jsx';
 import OrgDetailsButton from './components/organization/OrgDetailsButton';
 
-// import SearchAndFilters from './components/spaces/SearchAndFilters.jsx';
 
 const AdminDashboard = () => {
   return (
@@ -17,7 +16,6 @@ const AdminDashboard = () => {
 
         <RevenueStats />
         <QuickStats />
-        {/* <SearchAndFilters /> */}
         <RoomStatusLegend />
         <SpacesGrid />
       </div>
