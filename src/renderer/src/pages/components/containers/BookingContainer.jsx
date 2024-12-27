@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import BookingForm from './BookingForm';
 import ServicesForm from './ServicesForm';
 import CheckoutModal from './CheckoutModal';
+import { useRoomsStore } from '../../../store/roomsStore';
 
 const STAGES = {
   BOOKING: 'BOOKING',
@@ -10,7 +11,7 @@ const STAGES = {
   CHECKOUT: 'CHECKOUT'
 };
 
-const BookingContainer = ({ space, onClose }) => {
+const BookingContainer = ({ space, category, onClose }) => {
   // Check if there's an existing booking
   const hasExistingBooking = space.currentStatus === 'OCCUPIED' && space.bookingId;
 
@@ -151,15 +152,16 @@ const BookingContainer = ({ space, onClose }) => {
     try {
       setLoading(true);
       setError(null);
-
+  
       if (currentStage === STAGES.BOOKING) {
         // Validate booking data
         if (!validateBookingData()) {
           throw new Error('Please fill all required fields correctly');
         }
-
-        // Create primary guest
-        const guestData = {
+  
+        const bookingData = {
+          spaceId: space._id,
+          // Primary Guest Data
           fullName: formData.fullName,
           phoneNumber: formData.phoneNumber,
           gender: formData.gender,
@@ -167,37 +169,38 @@ const BookingContainer = ({ space, onClose }) => {
           aadharNumber: formData.aadharNumber,
           nationality: formData.nationality,
           address: formData.address,
-          companyName: formData.companyName,
-          gstin: formData.gstin,
-          designation: formData.designation,
-          purposeOfVisit: formData.purposeOfVisit
-        };
-
-        // Create booking
-        const bookingData = {
-          spaceId: space._id,
+          companyName: formData.companyName || null,
+          gstin: formData.gstin || null,
+          designation: formData.designation || null,
+          purposeOfVisit: formData.purposeOfVisit || null,
+          // Booking details
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
-          bookingType: 'CURRENT',
-          status: 'ONGOING',
-          guestData,
+          // Additional Guests
           additionalGuests: formData.additionalGuests.map(guest => ({
             ...guest,
-            age: parseInt(guest.age)
+            age: parseInt(guest.age),
+            isKid: guest.isKid || false
           }))
         };
-
-        // Update space and create booking
-        const result = await window.electron.updateRoom({
-          name: space.spaceName,
-          status: 'OCCUPIED',
-          bookingData
-        });
-
+  
+        const result = await window.electron.createBooking(bookingData);
+  
         if (!result.success) {
           throw new Error(result.message || 'Failed to create booking');
         }
 
+        // Get updated room data to reflect changes
+        const roomData = await window.electron.getRoomData();
+        
+        if (roomData.success) {
+          useRoomsStore.getState().setSpaces(roomData.data.spaces);
+          useRoomsStore.getState().setStats(roomData.data.stats);
+        }
+        // Set the bookingId from the result
+        space.bookingId = result.data._id;
+        console.log('created:', space.bookingId);
+  
         setCurrentStage(STAGES.SERVICES);
       } 
       else if (currentStage === STAGES.SERVICES) {
@@ -210,11 +213,23 @@ const BookingContainer = ({ space, onClose }) => {
             throw new Error('All services must have name, cost and units');
           }
         }
-
+  
+        // Update booking with services
+        const result = await window.electron.updateBookingServices({
+          bookingId: space.bookingId.toString(),
+          services: formData.services
+        });
+  
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to update services');
+        }
+  
+        // Move to checkout stage
         setCurrentStage(STAGES.CHECKOUT);
       }
     } catch (err) {
       setError(err.message);
+      console.error('Booking error:', err);
     } finally {
       setLoading(false);
     }

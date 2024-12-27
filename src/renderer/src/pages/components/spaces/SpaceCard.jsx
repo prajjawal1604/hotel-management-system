@@ -49,8 +49,8 @@ const SpaceCard = ({ space, category }) => {
   };
 
   const canDelete = ['AVAILABLE', 'MAINTENANCE'].includes(space.currentStatus);
-  const userRole = useStore(state => state.user?.role);
-  const isAdmin = userRole === 'admin';
+  const { auth: { userRole } } = useStore();
+  const isAdmin = userRole === 'ADMIN';
 
   // Status-based styling
   const statusStyles = {
@@ -124,7 +124,8 @@ const SpaceCard = ({ space, category }) => {
           {space.currentStatus === 'OCCUPIED' && space.bookingId && (
             <div className="mt-2 text-sm">
               <p className="text-gray-700 font-medium">
-                Guest: {space.bookingId.primaryGuest?.name || 'N/A'}
+                Guest: {space.bookingId.guestId?.fullName || 'N/A'}
+                {console.log(`space.bookingId.guestId?.fullName: ${space.bookingId._id}`)}
               </p>
               <div className="flex justify-between mt-1 text-gray-600">
                 <span>In: {formatDate(space.bookingId.checkIn)}</span>
@@ -155,7 +156,7 @@ const SpaceCard = ({ space, category }) => {
       )}
 
       {/* Modify existing modals to only show for admin */}
-      {!userRole === 'frontoffice' && showRoomDetails && (
+      {userRole === 'ADMIN' && showRoomDetails && (
         <RoomDetailsModal
           space={space}
           onClose={() => setShowRoomDetails(false)}
@@ -163,7 +164,7 @@ const SpaceCard = ({ space, category }) => {
         />
       )}
 
-      {!userRole === 'frontoffice' && showGuestDetails && (
+      {userRole === 'ADMIN' && showGuestDetails && (
         <GuestDetailsModal
           guest={space.currentGuest}
           onClose={() => setShowGuestDetails(false)}

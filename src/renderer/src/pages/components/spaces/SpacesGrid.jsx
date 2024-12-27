@@ -14,8 +14,8 @@ const SpacesGrid = () => {
   const spaces = useRoomsStore(state => state.spaces);
   const categories = useRoomsStore(state => state.categories);
   const filters = useRoomsStore(state => state.filters);
-  const role = useStore(state => state.user?.role); // Fix: Get role from useStore
-  const isAdmin = role === 'ADMIN'; // Check against 'ADMIN' role
+  const { auth: { userRole } } = useStore();
+  const isAdmin = userRole  === 'ADMIN'; // Check against 'ADMIN' role
 
   // Debug logs for store data
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { PlusCircle, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { PlusCircle, X, ChevronDown, ChevronRight, Save } from 'lucide-react';
+import { useRoomsStore } from '../../../store/roomsStore';
 
-// Service types from schema
 const SERVICE_TYPES = {
   FOOD: 'FOOD',
   LAUNDRY: 'LAUNDRY',
@@ -13,6 +13,8 @@ const ServicesForm = ({ formData, setFormData, space }) => {
   // Track which services are collapsed
   const [collapsedServices, setCollapsedServices] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
+  const [loading, setLoading] = useState({});  // Track loading state per service
+  const [error, setError] = useState(null);
 
   // Add new service
   const addService = () => {
@@ -26,7 +28,8 @@ const ServicesForm = ({ formData, setFormData, space }) => {
           units: 1,
           costPerUnit: '',
           remarks: '',
-          dateTime: new Date().toISOString()
+          dateTime: new Date().toISOString(),
+          isPending: true  // Track if service needs to be saved
         }
       ]
     }));
@@ -37,35 +40,112 @@ const ServicesForm = ({ formData, setFormData, space }) => {
     }));
   };
 
-  // Remove service
-  const removeService = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      services: prev.services.filter((_, i) => i !== index)
-    }));
-    // Remove from collapsed state
-    const newCollapsed = { ...collapsedServices };
-    delete newCollapsed[index];
-    setCollapsedServices(newCollapsed);
+  // Save service to database
+  const saveService = async (index) => {
+    try {
+      setLoading(prev => ({ ...prev, [index]: true }));
+      setError(null);
+
+      const service = formData.services[index];
+
+      // Validate service
+      if (!service.serviceName || !service.costPerUnit || !service.units) {
+        throw new Error('Please fill all required fields');
+      }
+
+      const result = await window.electron.updateBookingServices({
+        bookingId: space.bookingId,
+        services: [{
+          serviceName: service.serviceName,
+          serviceType: service.serviceType,
+          units: service.units,
+          costPerUnit: service.costPerUnit,
+          remarks: service.remarks,
+          dateTime: service.dateTime
+        }]
+      });
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to save service');
+      }
+
+      // Update local state with saved service
+      const newServices = [...formData.services];
+      newServices[index] = {
+        ...result.data.serviceIds[0],  // Use returned service data
+        isPending: false
+      };
+      
+      setFormData(prev => ({
+        ...prev,
+        services: newServices
+      }));
+
+    } catch (error) {
+      setError(error.message);
+      setValidationErrors(prev => ({
+        ...prev,
+        [index]: error.message
+      }));
+    } finally {
+      setLoading(prev => ({ ...prev, [index]: false }));
+    }
   };
 
-  // Update service
+  // Remove service
+  const removeService = async (index) => {
+    try {
+      const service = formData.services[index];
+      setLoading(prev => ({ ...prev, [index]: true }));
+      
+      // If service was saved to DB, delete it
+      if (service._id) {
+        const result = await window.electron.deleteBookingService({
+          bookingId: space.bookingId,
+          serviceId: service._id
+        });
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to delete service');
+        }
+      }
+
+      // Remove from local state
+      setFormData(prev => ({
+        ...prev,
+        services: prev.services.filter((_, i) => i !== index)
+      }));
+
+      // Remove from collapsed state
+      const newCollapsed = { ...collapsedServices };
+      delete newCollapsed[index];
+      setCollapsedServices(newCollapsed);
+
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(prev => ({ ...prev, [index]: false }));
+    }
+  };
+
+  // Update service locally
   const updateService = (index, field, value) => {
     const newServices = [...formData.services];
     newServices[index] = {
       ...newServices[index],
       [field]: field === 'units' || field === 'costPerUnit' ? 
-        Number(value) || 0 : value
+        Number(value) || 0 : value,
+      isPending: true  // Mark as needing save
     };
+    
     setFormData(prev => ({
       ...prev,
       services: newServices
     }));
 
-    // Clear validation error if exists
-    if (validationErrors[`${index}-${field}`]) {
+    if (validationErrors[index]) {
       const newErrors = { ...validationErrors };
-      delete newErrors[`${index}-${field}`];
+      delete newErrors[index];
       setValidationErrors(newErrors);
     }
   };
@@ -78,12 +158,11 @@ const ServicesForm = ({ formData, setFormData, space }) => {
     }));
   };
 
-  // Calculate total for a service
+  // Calculate totals
   const calculateServiceTotal = (service) => {
     return (service.units || 0) * (service.costPerUnit || 0);
   };
 
-  // Calculate grand total
   const calculateGrandTotal = () => {
     return formData.services.reduce((total, service) => 
       total + calculateServiceTotal(service), 0
@@ -93,6 +172,12 @@ const ServicesForm = ({ formData, setFormData, space }) => {
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-600 rounded-lg">
+            {error}
+          </div>
+        )}
+        
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">Additional Services</h3>
@@ -145,15 +230,22 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                       )}
                     </h4>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeService(index);
-                    }}
-                    className="text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {!service.isPending && (
+                      <span className="text-sm text-green-600">✓ Saved</span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeService(index);
+                      }}
+                      disabled={loading[index]}
+                      className="text-gray-400 hover:text-red-600 transition-colors
+                        disabled:opacity-50"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Service Details */}
@@ -171,7 +263,7 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                           onChange={(e) => updateService(index, 'serviceName', e.target.value)}
                           placeholder="Enter service name"
                           className={`w-full px-4 py-2 rounded-lg border ${
-                            validationErrors[`${index}-serviceName`] ? 
+                            validationErrors[index] ? 
                               'border-red-500' : 'border-gray-200'
                           }`}
                         />
@@ -251,13 +343,26 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                         />
                       </div>
 
-                      {/* Service Total */}
-                      <div className="md:col-span-2 lg:col-span-3 pt-2 border-t">
-                        <div className="flex justify-end items-center gap-2">
-                          <span className="text-gray-600">Total:</span>
-                          <span className="text-lg font-semibold text-green-600">
-                            ₹{calculateServiceTotal(service).toFixed(2)}
-                          </span>
+                      {/* Save Button & Total */}
+                      <div className="md:col-span-2 lg:col-span-3 pt-4 border-t">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-600">Total:</span>
+                            <span className="text-lg font-semibold text-green-600">
+                              ₹{calculateServiceTotal(service).toFixed(2)}
+                            </span>
+                          </div>
+                          {service.isPending && (
+                            <button
+                              onClick={() => saveService(index)}
+                              disabled={loading[index]}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg
+                                hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+                            >
+                              <Save size={16} />
+                              {loading[index] ? 'Saving...' : 'Save Changes'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

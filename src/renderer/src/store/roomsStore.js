@@ -171,7 +171,7 @@ export const useRoomsStore = create((set) => ({
     };
   }),
 
-  cancelBooking: (spaceId, reason) => set(state => {
+  cancelBooking: (spaceId) => set(state => {
     console.log('Cancelling booking for space:', spaceId);
     const updatedSpaces = state.spaces.map(space => {
       if (space._id === spaceId) {

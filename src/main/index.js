@@ -970,7 +970,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
     // Update space status and link booking
     await Space.findByIdAndUpdate(bookingData.spaceId, {
       currentStatus: 'OCCUPIED',
-      bookingId: booking._id,
+      bookingId: booking._id.toString(),
       lastUpdated: new Date()
     });
 
@@ -1280,6 +1280,25 @@ ipcMain.handle('cancel-booking', async (_, { bookingId, reason }) => {
 
   } catch (error) {
     console.error('Cancel booking error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('delete-booking-service', async (_, { bookingId, serviceId }) => {
+  try {
+    const { Booking, Service } = models.getOrgModels();
+    
+    // Remove service
+    await Service.findByIdAndDelete(serviceId);
+
+    // Remove reference from booking
+    await Booking.findByIdAndUpdate(bookingId, {
+      $pull: { serviceIds: serviceId }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Delete service error:', error);
     return { success: false, message: error.message };
   }
 });
