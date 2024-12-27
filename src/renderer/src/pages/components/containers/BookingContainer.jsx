@@ -204,25 +204,7 @@ const BookingContainer = ({ space, category, onClose }) => {
         setCurrentStage(STAGES.SERVICES);
       } 
       else if (currentStage === STAGES.SERVICES) {
-        // Validate services if any
-        if (formData.services.length > 0) {
-          const invalidServices = formData.services.filter(
-            service => !service.serviceName || !service.costPerUnit || !service.units
-          );
-          if (invalidServices.length > 0) {
-            throw new Error('All services must have name, cost and units');
-          }
-        }
-  
-        // Update booking with services
-        const result = await window.electron.updateBookingServices({
-          bookingId: space.bookingId.toString(),
-          services: formData.services
-        });
-  
-        if (!result.success) {
-          throw new Error(result.message || 'Failed to update services');
-        }
+        
   
         // Move to checkout stage
         setCurrentStage(STAGES.CHECKOUT);

@@ -68,18 +68,18 @@ const ServicesForm = ({ formData, setFormData, space }) => {
       if (!result.success) {
         throw new Error(result.message || 'Failed to save service');
       }
-
-      // Update local state with saved service
-      const newServices = [...formData.services];
-      newServices[index] = {
-        ...result.data.serviceIds[0],  // Use returned service data
-        isPending: false
-      };
-      
-      setFormData(prev => ({
+setFormData(prev => ({
         ...prev,
         services: newServices
       }));
+      // Update local state with saved service
+      const newServices = [...formData.services];
+      newServices[index] = {
+        ...result.data.serviceIds[index],  // Use returned service data
+        isPending: false
+      };
+      
+      
 
     } catch (error) {
       setError(error.message);

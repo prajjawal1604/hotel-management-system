@@ -7,6 +7,7 @@ import { initializeDatabases } from './database/dbInit';
 import connectionManager from './database/connectionManager';
 import models from './database/models';
 import mongoose from 'mongoose';
+import { path } from 'pdfkit';
 
 // Window creation and initialization
 function createWindow() {
@@ -400,22 +401,68 @@ ipcMain.handle('delete-category', async (_, categoryId) => {
  */
 ipcMain.handle('get-room-data', async () => {
   try {
-    const { Space, Category } = models.getOrgModels();
+    const { Space, Category, Booking, PrimaryGuest, AdditionalGuest, Service } = models.getOrgModels();
     console.log('Starting to fetch room data...');
     
-    if (!Space || !Category) {
-      throw new Error('Models not properly initialized');
+    // Validate all required models are initialized
+    if (!Space || !Category || !Booking || !PrimaryGuest || !AdditionalGuest || !Service) {
+      throw new Error('Required models not properly initialized');
     }
     
-    // Fetch spaces with populated category data
+    // Fetch spaces with populated category and booking data
     const spacesDoc = await Space.find()
       .populate({
         path: 'categoryId',
-        model: 'categories'
+        model: Category
+      })
+      .populate({
+        path: 'bookingId',
+        model: Booking,
+        populate: [
+          { 
+            path: 'guestId',
+            model: PrimaryGuest
+          },
+          { 
+            path: 'additionalGuestIds',
+            model: AdditionalGuest
+          },
+          { 
+            path: 'serviceIds',
+            model: Service
+          }
+        ]
       })
       .lean();
+
+    // Convert all IDs to strings
+    const spaces = spacesDoc.map(space => ({
+      ...space,
+      _id: space._id.toString(),
+      categoryId: space.categoryId ? {
+        ...space.categoryId,
+        _id: space.categoryId._id.toString()
+      } : null,
+      bookingId: space.bookingId ? {
+        ...space.bookingId,
+        _id: space.bookingId._id.toString(),
+        spaceId: space.bookingId.spaceId.toString(),
+        guestId: space.bookingId.guestId ? {
+          ...space.bookingId.guestId,
+          _id: space.bookingId.guestId._id.toString()
+        } : null,
+        additionalGuestIds: space.bookingId.additionalGuestIds?.map(guest => ({
+          ...guest,
+          _id: guest._id.toString()
+        })) || [],
+        serviceIds: space.bookingId.serviceIds?.map(service => ({
+          ...service,
+          _id: service._id.toString()
+        })) || []
+      } : null
+    }));
     
-    console.log(`Found ${spacesDoc.length} spaces`);
+    console.log(`Found ${spaces.length} spaces`);
 
     // Fetch categories
     const categoriesDoc = await Category.find().lean();
@@ -430,18 +477,10 @@ ipcMain.handle('get-room-data', async () => {
 
     console.log('Room Statistics:', stats);
 
-    // Ensure we're returning an object with success and data properties
     return {
       success: true,
       data: { 
-        spaces: spacesDoc.map(space => ({
-          ...space,
-          _id: space._id.toString(),
-          categoryId: {
-            ...space.categoryId,
-            _id: space.categoryId._id.toString()
-          }
-        })) || [],
+        spaces,
         categories: categoriesDoc.map(category => ({
           ...category,
           _id: category._id.toString()
@@ -453,7 +492,7 @@ ipcMain.handle('get-room-data', async () => {
     console.error('Get room data error:', error);
     return { 
       success: false, 
-      message: 'Failed to fetch room data',
+      message: error.message || 'Failed to fetch room data',
       data: {
         spaces: [],
         categories: [],
@@ -1068,11 +1107,14 @@ ipcMain.handle('update-booking-services', async (_, { bookingId, services }) => 
     const booking = await Booking.findByIdAndUpdate(
       bookingId,
       {
-        $push: { serviceIds: { $each: createdServices.map(s => s._id) } }
+        $push: { serviceIds: { $each: createdServices.map(s => s._id.toString()) } }
       },
       { new: true }
     )
-    .populate('serviceIds')
+    .populate({
+      path: 'serviceIds',
+      model: 'services'  // Make sure this matches your model name exactly
+    })
     .lean();
 
     return {
@@ -1093,18 +1135,25 @@ ipcMain.handle('update-booking-services', async (_, { bookingId, services }) => 
   }
 });
 
-/**
- * Calculate Checkout Amount Handler
- * Calculates final bill with room charges, services, and GST
- */
-ipcMain.handle('calculate-checkout', async (_, bookingId) => {
+ipcMain.handle('calculate-checkout', async (_, checkoutData) => {
   try {
-    console.log('Calculating checkout amount for booking:', bookingId);
+    console.log('Calculating checkout amount:', checkoutData);
     const { Booking, Space } = models.getOrgModels();
 
-    const booking = await Booking.findById(bookingId)
-      .populate('spaceId')
-      .populate('serviceIds')
+    // Find the booking using spaceId
+    const space = await Space.findById(checkoutData.spaceId)
+      .populate({path:'bookingId', model: 'bookings'})
+      .lean();
+
+    if (!space || !space.bookingId) {
+      throw new Error('No active booking found for this space');
+    }
+
+    const booking = await Booking.findById(space.bookingId)
+      .populate({
+        path: 'serviceIds',
+        model: 'services'  // Make sure this matches your model name exactly
+      })
       .lean();
 
     if (!booking) {
@@ -1112,8 +1161,8 @@ ipcMain.handle('calculate-checkout', async (_, bookingId) => {
     }
 
     // Calculate room charges based on 8am policy
-    const checkIn = new Date(booking.checkIn);
-    const checkOut = new Date(booking.checkOut);
+    const checkIn = new Date(checkoutData.checkIn);
+    const checkOut = new Date(checkoutData.checkOut);
     
     const normalizeDate = date => {
       const normalized = new Date(date);
@@ -1130,17 +1179,17 @@ ipcMain.handle('calculate-checkout', async (_, bookingId) => {
       days += 1;
     }
 
-    const roomCharges = days * booking.spaceId.basePrice;
+    const roomCharges = days * space.basePrice;
 
-    // Calculate service charges
-    const serviceCharges = booking.serviceIds.reduce(
-      (total, service) => total + (service.units * service.costPerUnit), 
+    // Calculate service charges using the passed services
+    const serviceCharges = checkoutData.services.reduce(
+      (total, service) => total + (service.costPerUnit * service.units), 
       0
     );
 
     // Calculate GST
     const subtotal = roomCharges + serviceCharges;
-    const gstAmount = subtotal * (booking.spaceId.gstPercentage / 100);
+    const gstAmount = subtotal * (space.gstPercentage / 100);
 
     return {
       success: true,
@@ -1151,8 +1200,8 @@ ipcMain.handle('calculate-checkout', async (_, bookingId) => {
         totalAmount: subtotal + gstAmount,
         breakdown: {
           days,
-          baseRate: booking.spaceId.basePrice,
-          servicesBreakdown: booking.serviceIds,
+          baseRate: space.basePrice,
+          servicesBreakdown: checkoutData.services,
           checkInTime: checkIn,
           checkOutTime: checkOut
         }

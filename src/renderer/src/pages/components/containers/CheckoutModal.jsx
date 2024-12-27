@@ -18,30 +18,35 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   const [miscCharges, setMiscCharges] = useState([]);
 
   // Fetch initial checkout calculations
-  useEffect(() => {
-    const calculateCheckout = async () => {
-      try {
-        const result = await window.electron.calculateCheckout({
-          spaceId: space._id,
-          checkIn: formData.checkIn,
-          checkOut: formData.checkOut,
-          services: formData.services
-        });
+  // Fetch initial checkout calculations
+useEffect(() => {
+  const calculateCheckout = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-        if (!result.success) {
-          throw new Error(result.message || 'Failed to calculate checkout details');
-        }
+      // We pass the data needed for calculation
+      const result = await window.electron.calculateCheckout({
+        spaceId: space._id,
+        checkIn: formData.checkIn,
+        checkOut: formData.checkOut,
+        services: formData.services
+      });
 
-        setCheckoutData(result.data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to calculate checkout details');
       }
-    };
 
-    calculateCheckout();
-  }, [space._id, formData]);
+      setCheckoutData(result.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  calculateCheckout();
+}, [space._id, formData.checkIn, formData.checkOut, formData.services]);
 
   // Handle misc charges
   const addMiscCharge = () => {
