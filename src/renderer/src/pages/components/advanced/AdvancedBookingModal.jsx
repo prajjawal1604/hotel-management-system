@@ -29,6 +29,7 @@ const AdvancedBookingModal = ({ onClose }) => {
       const result = await window.electron.getAdvanceBookings();
       
       if (result.success) {
+        console.log('Fetched bookings:', result.data);
         setBookings(result.data);
       } else {
         throw new Error(result.message || 'Failed to fetch bookings');
@@ -57,8 +58,8 @@ const AdvancedBookingModal = ({ onClose }) => {
         throw new Error(result.message || 'Failed to create booking');
       }
 
-      // Add new booking to list and switch to list view
-      setBookings(prev => [result.data, ...prev]);
+      console.log('Created booking:', result.data);
+      await fetchBookings(); // Refresh the list
       setActiveTab('list');
     } catch (err) {
       setError(err.message);
@@ -70,16 +71,19 @@ const AdvancedBookingModal = ({ onClose }) => {
 
   // Filter bookings
   const getFilteredBookings = () => {
+    if (!bookings) return [];
+    
     return bookings.filter(booking => {
       // Search term filter
-      const searchMatch = 
-        booking.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.phoneNumber.includes(searchTerm) ||
-        booking.aadharNumber?.includes(searchTerm);
+      const searchMatch = searchTerm === '' || (
+        booking.guestId?.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.guestId?.phoneNumber?.includes(searchTerm) ||
+        booking.guestId?.aadharNumber?.toString().includes(searchTerm)
+      );
       
       // Date filter
       let dateMatch = true;
-      if (dateFilter !== DATE_FILTERS.ALL) {
+      if (dateFilter !== DATE_FILTERS.ALL && booking.checkIn) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const checkIn = new Date(booking.checkIn);
@@ -113,6 +117,18 @@ const AdvancedBookingModal = ({ onClose }) => {
     });
   };
 
+  // Handle room assignment
+  const handleAssignRoom = async (bookingId) => {
+    try {
+      setError(null);
+      // TODO: Implement room selection and assignment
+      alert('Room assignment functionality coming soon!');
+    } catch (err) {
+      setError(err.message);
+      console.error('Error assigning room:', err);
+    }
+  };
+
   // Render booking list item
   const renderBookingItem = (booking) => (
     <div key={booking._id} 
@@ -122,11 +138,14 @@ const AdvancedBookingModal = ({ onClose }) => {
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <User size={20} className="text-gray-500" />
-            {booking.fullName}
+            {booking.guestId?.fullName || 'N/A'}
           </h3>
           <div className="mt-1 text-sm text-gray-600 flex items-center gap-2">
             <Phone size={16} />
-            {booking.phoneNumber}
+            {booking.guestId?.phoneNumber || 'N/A'}
+          </div>
+          <div className="mt-1 text-sm text-gray-500">
+            Aadhar: {booking.guestId?.aadharNumber || 'N/A'}
           </div>
         </div>
       </div>
@@ -143,19 +162,28 @@ const AdvancedBookingModal = ({ onClose }) => {
           </p>
         </div>
         <div className="text-sm">
-          <p className="text-gray-500">Room Type: {booking.preferredRoomType}</p>
-          <p className="text-gray-500">Advance: ₹{booking.advanceAmount}</p>
+          <p className="text-gray-500">
+            Additional Guests: {booking.additionalGuestIds?.length || 0}
+          </p>
+          <p className="text-gray-500">
+            Advance: ₹{booking.advanceAmount || 0}
+          </p>
+          <p className="text-gray-500">
+            Status: {booking.status}
+          </p>
         </div>
       </div>
 
       <div className="flex justify-end gap-3">
-        <button
-          onClick={() => window.electron.assignRoom(booking._id)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
-            transition-colors"
-        >
-          Assign Room
-        </button>
+        {booking.status === 'ONGOING' && (
+          <button
+            onClick={() => handleAssignRoom(booking._id)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
+              transition-colors"
+          >
+            Assign Room
+          </button>
+        )}
       </div>
     </div>
   );

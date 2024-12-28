@@ -1362,12 +1362,11 @@ ipcMain.handle('getAdvanceBookings', async () => {
     // Get advance bookings that are not cancelled and not assigned to a room
     const bookings = await Booking.find({ 
       bookingType: 'ADVANCE',
-      spaceId: null,
       status: 'ONGOING'
     })
-    .populate('guestId')
-    .populate('additionalGuestIds')
-    .sort({ checkIn: 1 })  // Sort by check-in date
+    .populate({path:'guestId',model:'primary_guests'})
+    .populate({path:'additionalGuestIds',model:'additional_guests'})
+    .sort({ checkIn: 1 })  
     .lean();
 
     console.log(`Found ${bookings.length} advance bookings`);

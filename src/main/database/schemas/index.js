@@ -72,7 +72,7 @@ const serviceSchema = new mongoose.Schema({
 });
 
 const bookingSchema = new mongoose.Schema({
-    spaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Space", required: true },
+    spaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Space", required: false },
     guestId: { type: mongoose.Schema.Types.ObjectId, ref: "PrimaryGuest", required: true },
     additionalGuestIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "AdditionalGuest" }],
     serviceIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Service" }],
