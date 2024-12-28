@@ -6,7 +6,7 @@ import icon from '../../resources/icon.png?asset';
 import { initializeDatabases } from './database/dbInit';
 import connectionManager from './database/connectionManager';
 import models from './database/models';
-import mongoose from 'mongoose';
+import mongoose, { model } from 'mongoose';
 import { path } from 'pdfkit';
 
 // Window creation and initialization
@@ -1003,6 +1003,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
       checkOut: new Date(bookingData.checkOut),
       bookingType: 'CURRENT',
       status: 'ONGOING',
+      advanceAmount: bookingData.advanceAmount,
       serviceIds: [] // Initially empty, will be added later
     });
 
@@ -1273,7 +1274,7 @@ ipcMain.handle('cancel-booking', async (_, { bookingId, reason }) => {
 
     // Get booking with space details
     const booking = await Booking.findById(bookingId)
-      .populate('spaceId')
+      .populate({path:'spaceId', model: 'spaces'})
       .lean();
 
     if (!booking) {
@@ -1300,7 +1301,7 @@ ipcMain.handle('cancel-booking', async (_, { bookingId, reason }) => {
 
     // Get updated space data
     const updatedSpace = await Space.findById(booking.spaceId._id)
-      .populate('categoryId')
+      .populate({path:'categoryId',model:'categories'})
       .lean();
 
     // Calculate updated stats
@@ -1349,5 +1350,275 @@ ipcMain.handle('delete-booking-service', async (_, { bookingId, serviceId }) => 
   } catch (error) {
     console.error('Delete service error:', error);
     return { success: false, message: error.message };
+  }
+});
+
+// Get Advance Bookings Handler
+ipcMain.handle('getAdvanceBookings', async () => {
+  try {
+    console.log('Fetching advance bookings');
+    const { Booking, PrimaryGuest } = models.getOrgModels();
+
+    // Get advance bookings that are not cancelled and not assigned to a room
+    const bookings = await Booking.find({ 
+      bookingType: 'ADVANCE',
+      spaceId: null,
+      status: 'ONGOING'
+    })
+    .populate('guestId')
+    .populate('additionalGuestIds')
+    .sort({ checkIn: 1 })  // Sort by check-in date
+    .lean();
+
+    console.log(`Found ${bookings.length} advance bookings`);
+
+    return {
+      success: true,
+      data: bookings.map(booking => ({
+        ...booking,
+        _id: booking._id.toString(),
+        guestId: booking.guestId ? {
+          ...booking.guestId,
+          _id: booking.guestId._id.toString()
+        } : null,
+        additionalGuestIds: booking.additionalGuestIds.map(guest => ({
+          ...guest,
+          _id: guest._id.toString()
+        }))
+      }))
+    };
+  } catch (error) {
+    console.error('Get advance bookings error:', error);
+    return { 
+      success: false, 
+      message: 'Failed to fetch advance bookings' 
+    };
+  }
+});
+
+// Create Advance Booking Handler
+ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
+  try {
+    console.log('Creating advance booking:', JSON.stringify(bookingData, null, 2));
+    const { PrimaryGuest, AdditionalGuest, Booking } = models.getOrgModels();
+
+    // Validate required fields
+    const requiredFields = ['fullName', 'phoneNumber', 'gender', 'aadharNumber', 'checkIn', 'checkOut'];
+    for (const field of requiredFields) {
+      if (!bookingData[field]) {
+        throw new Error(`${field} is required`);
+      }
+    }
+
+    // Create primary guest
+    const primaryGuest = await PrimaryGuest.create({
+      fullName: bookingData.fullName,
+      phoneNumber: bookingData.phoneNumber,
+      gender: bookingData.gender,
+      age: Number(bookingData.age || 0),
+      aadharNumber: bookingData.aadharNumber
+    });
+
+    // Create additional guests if any
+    const additionalGuestIds = [];
+    if (bookingData.additionalGuests?.length > 0) {
+      const additionalGuests = await AdditionalGuest.insertMany(
+        bookingData.additionalGuests.map(guest => ({
+          fullName: guest.fullName,
+          gender: guest.gender,
+          age: Number(guest.age || 0),
+          aadharNumber: guest.aadharNumber,
+          isKid: guest.isKid || false
+        }))
+      );
+      additionalGuestIds.push(...additionalGuests.map(g => g._id));
+    }
+
+    // Create advance booking
+    const booking = await Booking.create({
+      guestId: primaryGuest._id,
+      additionalGuestIds,
+      checkIn: new Date(bookingData.checkIn),
+      checkOut: new Date(bookingData.checkOut),
+      advanceAmount: Number(bookingData.advanceAmount || 0),
+      bookingType: 'ADVANCE',
+      status: 'ONGOING'
+    });
+
+    // Fetch complete booking with populated fields
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('guestId')
+      .populate('additionalGuestIds')
+      .lean();
+
+    return {
+      success: true,
+      data: {
+        ...populatedBooking,
+        _id: populatedBooking._id.toString(),
+        guestId: {
+          ...populatedBooking.guestId,
+          _id: populatedBooking.guestId._id.toString()
+        },
+        additionalGuestIds: populatedBooking.additionalGuestIds.map(guest => ({
+          ...guest,
+          _id: guest._id.toString()
+        }))
+      }
+    };
+
+  } catch (error) {
+    console.error('Create advance booking error:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Failed to create advance booking' 
+    };
+  }
+});
+
+// Cancel Advance Booking Handler
+ipcMain.handle('cancelAdvanceBooking', async (_, bookingId) => {
+  try {
+    console.log('Cancelling advance booking:', bookingId);
+    const { Booking } = models.getOrgModels();
+
+    // Find and validate booking
+    const booking = await Booking.findById(bookingId).lean();
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    if (booking.bookingType !== 'ADVANCE') {
+      throw new Error('Only advance bookings can be cancelled');
+    }
+
+    if (booking.status !== 'ONGOING') {
+      throw new Error('Booking is already cancelled or completed');
+    }
+
+    // Update booking status
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      bookingId,
+      { 
+        status: 'CANCELLED',
+        lastUpdated: new Date()
+      },
+      { new: true }
+    )
+    .populate('guestId')
+    .populate('additionalGuestIds')
+    .lean();
+
+    return {
+      success: true,
+      data: {
+        ...updatedBooking,
+        _id: updatedBooking._id.toString(),
+        guestId: {
+          ...updatedBooking.guestId,
+          _id: updatedBooking.guestId._id.toString()
+        },
+        additionalGuestIds: updatedBooking.additionalGuestIds.map(guest => ({
+          ...guest,
+          _id: guest._id.toString()
+        }))
+      }
+    };
+
+  } catch (error) {
+    console.error('Cancel advance booking error:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Failed to cancel advance booking' 
+    };
+  }
+});
+
+/**
+ * Assign Room to Advance Booking Handler
+ * Converts advance booking to regular booking and assigns a room
+ */
+ipcMain.handle('assignRoom', async (_, { bookingId, spaceId }) => {
+  try {
+    console.log('Assigning room to booking:', { bookingId, spaceId });
+    const { Booking, Space } = models.getOrgModels();
+
+    // Validate space availability
+    const space = await Space.findById(spaceId).lean();
+    if (!space) {
+      throw new Error('Space not found');
+    }
+    
+    if (space.currentStatus !== 'AVAILABLE') {
+      throw new Error('Selected room is not available');
+    }
+
+    // Update booking
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        spaceId,
+        bookingType: 'CURRENT',
+        status: 'ONGOING'
+      },
+      { new: true }
+    ).populate('guestId').lean();
+
+    if (!updatedBooking) {
+      throw new Error('Booking not found');
+    }
+
+    // Update space status
+    await Space.findByIdAndUpdate(spaceId, {
+      currentStatus: 'OCCUPIED',
+      bookingId: bookingId,
+      lastUpdated: new Date()
+    });
+
+    // Get updated room data
+    const roomData = await Space.findById(spaceId)
+      .populate('categoryId')
+      .populate({
+        path: 'bookingId',
+        populate: [
+          { path: 'guestId' },
+          { path: 'additionalGuestIds' },
+          { path: 'serviceIds' }
+        ]
+      })
+      .lean();
+
+    return {
+      success: true,
+      data: {
+        booking: {
+          ...updatedBooking,
+          _id: updatedBooking._id.toString(),
+          guestId: {
+            ...updatedBooking.guestId,
+            _id: updatedBooking.guestId._id.toString()
+          }
+        },
+        space: {
+          ...roomData,
+          _id: roomData._id.toString(),
+          categoryId: {
+            ...roomData.categoryId,
+            _id: roomData.categoryId._id.toString()
+          },
+          bookingId: {
+            ...roomData.bookingId,
+            _id: roomData.bookingId._id.toString()
+          }
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('Assign room error:', error);
+    return { 
+      success: false, 
+      message: error.message || 'Failed to assign room' 
+    };
   }
 });

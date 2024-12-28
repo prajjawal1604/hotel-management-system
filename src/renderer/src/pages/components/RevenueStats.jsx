@@ -43,21 +43,21 @@ const RevenueStats = () => {
   const stats = [
     {
       title: "Today's Revenue",
-      value: revenueStats.dailyRevenue,
+      value: revenueStats.dailyRevenue.toFixed(1),
       Icon: DollarSign,
       bgColor: "bg-green-100",
       iconColor: "text-green-600"
     },
     {
       title: "Weekly Revenue",
-      value: revenueStats.weeklyRevenue,
+      value: revenueStats.weeklyRevenue.toFixed(1),
       Icon: Activity,
       bgColor: "bg-blue-100",
       iconColor: "text-blue-600"
     },
     {
       title: "Monthly Revenue",
-      value: revenueStats.monthlyRevenue,
+      value: revenueStats.monthlyRevenue.toFixed(1),
       Icon: DollarSign,
       bgColor: "bg-purple-100",
       iconColor: "text-purple-600"

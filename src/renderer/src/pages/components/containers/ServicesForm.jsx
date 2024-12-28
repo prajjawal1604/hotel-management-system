@@ -18,21 +18,27 @@ const ServicesForm = ({ formData, setFormData, space }) => {
 
   // Add new service
   const addService = () => {
+    const newService = {
+      serviceName: '',
+      serviceType: SERVICE_TYPES.FOOD,
+      units: 1,
+      costPerUnit: '',
+      remarks: '',
+      dateTime: new Date().toISOString(),
+      isPending: true  // Track if service needs to be saved
+    };
+    
     setFormData(prev => ({
       ...prev,
       services: [
         ...prev.services,
-        {
-          serviceName: '',
-          serviceType: SERVICE_TYPES.FOOD,
-          units: 1,
-          costPerUnit: '',
-          remarks: '',
-          dateTime: new Date().toISOString(),
-          isPending: true  // Track if service needs to be saved
-        }
+        newService
       ]
     }));
+    
+    // Update the store with the new service data
+    useRoomsStore.getState().addBookingService(newService);
+
     // Expand the newly added service
     setCollapsedServices(prev => ({
       ...prev,
@@ -68,18 +74,21 @@ const ServicesForm = ({ formData, setFormData, space }) => {
       if (!result.success) {
         throw new Error(result.message || 'Failed to save service');
       }
-setFormData(prev => ({
-        ...prev,
-        services: newServices
-      }));
+
+      // Update the store with the new service data
+      useRoomsStore.getState().updateBookingServices(result.data.serviceIds);
+
       // Update local state with saved service
       const newServices = [...formData.services];
       newServices[index] = {
-        ...result.data.serviceIds[index],  // Use returned service data
+        ...result.data.serviceIds[0], // Use first service since we're saving one at a time
         isPending: false
       };
       
-      
+      setFormData(prev => ({
+        ...prev,
+        services: newServices
+      }));
 
     } catch (error) {
       setError(error.message);
@@ -108,6 +117,9 @@ setFormData(prev => ({
         if (!result.success) {
           throw new Error(result.message || 'Failed to delete service');
         }
+
+        // Update store to reflect deletion
+        useRoomsStore.getState().removeBookingService(service._id);
       }
 
       // Remove from local state

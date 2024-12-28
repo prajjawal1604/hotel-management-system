@@ -161,7 +161,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.fullName ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             />
             {validationErrors.fullName && (
               <p className="text-sm text-red-600">{validationErrors.fullName}</p>
@@ -180,7 +180,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.phoneNumber ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             />
             {validationErrors.phoneNumber && (
               <p className="text-sm text-red-600">{validationErrors.phoneNumber}</p>
@@ -196,7 +196,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.gender ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             >
               <option value="">Select Gender</option>
               <option value="MALE">Male</option>
@@ -220,7 +220,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.age ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             />
             {validationErrors.age && (
               <p className="text-sm text-red-600">{validationErrors.age}</p>
@@ -239,7 +239,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.aadharNumber ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             />
             {validationErrors.aadharNumber && (
               <p className="text-sm text-red-600">{validationErrors.aadharNumber}</p>
@@ -257,7 +257,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.nationality ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             />
             {validationErrors.nationality && (
               <p className="text-sm text-red-600">{validationErrors.nationality}</p>
@@ -275,7 +275,7 @@ const BookingForm = ({
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.address ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
+              
             />
             {validationErrors.address && (
               <p className="text-sm text-red-600">{validationErrors.address}</p>
@@ -341,6 +341,32 @@ const BookingForm = ({
         </div>
       </div>
 
+      {/* Advance Amount */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <CreditCard size={20} />
+          Advance Amount
+        </h3>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-600">Advance Amount</label>
+          <input
+            type="number"
+            value={formData.advanceAmount}
+            onChange={(e) => handlePrimaryGuestChange('advanceAmount', e.target.value)}
+            placeholder="Enter advance amount"
+            min="0"
+            disabled={disabled}
+            className={`w-full px-4 py-2 rounded-lg border ${
+              validationErrors.advanceAmount ? 'border-red-500' : 'border-gray-200'
+            } disabled:bg-gray-50 disabled:text-gray-500`}
+            
+          />
+          {validationErrors.advanceAmount && (
+            <p className="text-sm text-red-600">{validationErrors.advanceAmount}</p>
+          )}
+        </div>
+      </div>
+
       {/* Additional Guests */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <div className="flex justify-between items-center mb-6">
@@ -384,7 +410,7 @@ const BookingForm = ({
                   className={`w-full px-4 py-2 rounded-lg border ${
                     validationErrors[`additionalGuest.${index}.fullName`] ? 'border-red-500' : 'border-gray-200'
                   } disabled:bg-gray-50 disabled:text-gray-500`}
-                  required
+                  
                 />
                 {validationErrors[`additionalGuest.${index}.fullName`] && (
                   <p className="text-sm text-red-600">{validationErrors[`additionalGuest.${index}.fullName`]}</p>
@@ -411,7 +437,7 @@ const BookingForm = ({
                   onChange={(e) => handleAdditionalGuestChange(index, 'gender', e.target.value)}
                   disabled={disabled}
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 disabled:bg-gray-50 disabled:text-gray-500"
-                  required
+                  
                 >
                   <option value="">Select Gender</option>
                   <option value="MALE">Male</option>
@@ -430,7 +456,7 @@ const BookingForm = ({
                   min="0"
                   disabled={disabled}
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 disabled:bg-gray-50 disabled:text-gray-500"
-                  required
+                  
                 />
               </div>
 
@@ -446,7 +472,7 @@ const BookingForm = ({
                   className={`w-full px-4 py-2 rounded-lg border ${
                     validationErrors[`additionalGuest.${index}.aadharNumber`] ? 'border-red-500' : 'border-gray-200'
                   } disabled:bg-gray-50 disabled:text-gray-500`}
-                  required
+                  
                 />
                 {validationErrors[`additionalGuest.${index}.aadharNumber`] && (
                   <p className="text-sm text-red-600">{validationErrors[`additionalGuest.${index}.aadharNumber`]}</p>

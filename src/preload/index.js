@@ -34,4 +34,10 @@ contextBridge.exposeInMainWorld('electron', {
   completeCheckout: async (data) => await ipcRenderer.invoke('complete-checkout', data),
   cancelBooking: async (data) => await ipcRenderer.invoke('cancel-booking', data),
   deleteBookingService: async (data) => await ipcRenderer.invoke('delete-booking-service', data),
+
+  getAdvanceBookings: () => ipcRenderer.invoke('getAdvanceBookings'),
+  createAdvanceBooking: (data) => ipcRenderer.invoke('createAdvanceBooking', data),
+  cancelAdvanceBooking: (bookingId) => ipcRenderer.invoke('cancelAdvanceBooking', bookingId),
+  assignRoom: (bookingId, spaceId) => ipcRenderer.invoke('assignRoom', { bookingId, spaceId })
+
 })

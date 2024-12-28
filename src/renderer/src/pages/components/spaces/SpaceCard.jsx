@@ -70,10 +70,10 @@ const SpaceCard = ({ space, category }) => {
   };
 
   const handleCardClick = () => {
-    if (!isAdmin) {
+    if (!isAdmin && space.currentStatus !== 'MAINTENANCE') {
       setShowBookingContainer(true);
     } else {
-      if (space.currentStatus === 'OCCUPIED') {
+      if ( isAdmin && space.currentStatus === 'OCCUPIED') {
         setShowGuestDetails(true);
       } else {
         setShowRoomDetails(true);
@@ -84,7 +84,7 @@ const SpaceCard = ({ space, category }) => {
   return (
     <>
       <div 
-        className={`rounded-lg p-4 border-2 transition-all cursor-pointer ${statusStyles[space.currentStatus]}`}
+        className={`rounded-lg p-4 border-2 transition-all  ${statusStyles[space.currentStatus]} ${space.currentStatus === 'MAINTENANCE' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         onClick={handleCardClick}
       >
         <div className="flex justify-between items-start">
@@ -166,10 +166,9 @@ const SpaceCard = ({ space, category }) => {
 
       {userRole === 'ADMIN' && showGuestDetails && (
         <GuestDetailsModal
-          guest={space.currentGuest}
-          onClose={() => setShowGuestDetails(false)}
-          isAdmin={isAdmin}
-        />
+        space={space}
+        onClose={() => setShowGuestDetails(false)}
+      />
       )}
     </>
   );

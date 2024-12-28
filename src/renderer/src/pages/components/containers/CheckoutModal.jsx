@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileText, PlusCircle } from 'lucide-react';
+import { useRoomsStore } from '../../../store/roomsStore'
 
 // Payment modes from schema
 const PAYMENT_MODES = {
@@ -17,36 +18,39 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   const [modeOfPayment, setModeOfPayment] = useState(PAYMENT_MODES.CASH);
   const [miscCharges, setMiscCharges] = useState([]);
 
-  // Fetch initial checkout calculations
-  // Fetch initial checkout calculations
-useEffect(() => {
-  const calculateCheckout = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const advance = parseFloat(formData.advanceAmount);
 
-      // We pass the data needed for calculation
-      const result = await window.electron.calculateCheckout({
-        spaceId: space._id,
-        checkIn: formData.checkIn,
-        checkOut: formData.checkOut,
-        services: formData.services
-      });
+  const orgDetails = useRoomsStore((state) => state.orgDetails)
 
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to calculate checkout details');
+  // Fetch initial checkout calculations
+  useEffect(() => {
+    const calculateCheckout = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // We pass the data needed for calculation
+        const result = await window.electron.calculateCheckout({
+          spaceId: space._id,
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut,
+          services: formData.services
+        });
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to calculate checkout details');
+        }
+
+        setCheckoutData(result.data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      setCheckoutData(result.data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  calculateCheckout();
-}, [space._id, formData.checkIn, formData.checkOut, formData.services]);
+    calculateCheckout();
+  }, [space._id, formData.checkIn, formData.checkOut, formData.services]);
 
   // Handle misc charges
   const addMiscCharge = () => {
@@ -75,7 +79,7 @@ useEffect(() => {
     );
 
     const subtotal = checkoutData.roomCharges + checkoutData.serviceCharges + miscTotal;
-    const gstAmount = subtotal * (space.gstPercentage / 100);
+    const gstAmount = subtotal * (orgDetails.gst / 100);
 
     return {
       roomCharges: checkoutData.roomCharges,
@@ -91,41 +95,41 @@ useEffect(() => {
     try {
       setIsLoading(true);
       setError(null);
-
+  
       const totals = calculateTotals();
-      const checkoutTime = new Date().toISOString();
-
+      const totalAmount = totals.grandTotal;
+  
       const checkoutData = {
         spaceId: space._id,
-        guestId: formData.guestId, // This should be set during booking creation
-        checkIn: formData.checkIn,
-        checkOut: checkoutTime,
+        bookingId: space.bookingId, // Add booking ID
         modeOfPayment,
-        status: 'COMPLETED',
         charges: {
           roomCharges: totals.roomCharges,
           serviceCharges: totals.serviceCharges,
           miscCharges,
           gstAmount: totals.gstAmount,
-          totalAmount: totals.grandTotal
-        }
+          totalAmount: totalAmount
+        },
+        totalAmount: totalAmount
       };
-
+  
       const result = await window.electron.completeCheckout(checkoutData);
-
+  
       if (!result.success) {
         throw new Error(result.message || 'Checkout failed');
       }
-
-      // Show success message
-      await window.electron.showNotification({
-        title: 'Checkout Complete',
-        body: 'Booking has been completed successfully'
-      });
-
+  
+      // Get updated room data to reflect changes
+      const roomData = await window.electron.getRoomData();
+      if (roomData.success) {
+        useRoomsStore.getState().setSpaces(roomData.data.spaces);
+        useRoomsStore.getState().setStats(roomData.data.stats);
+      }
+  
       onClose();
     } catch (err) {
       setError(err.message);
+      console.error('Checkout error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -259,18 +263,42 @@ useEffect(() => {
             {/* GST */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-center">
-                <p className="font-medium">GST ({space.gstPercentage}%)</p>
+                <p className="font-medium">GST ({orgDetails.gst}%)</p>
                 <p className="text-gray-600">₹{totals.gstAmount.toFixed(2)}</p>
               </div>
               <div className="mt-2 space-y-1 text-sm text-gray-500">
                 <div className="flex justify-between">
-                  <span>CGST ({space.gstPercentage/2}%)</span>
+                  <span>CGST ({orgDetails.gst/2}%)</span>
                   <span>₹{(totals.gstAmount/2).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>SGST ({space.gstPercentage/2}%)</span>
+                  <span>SGST ({orgDetails.gst/2}%)</span>
                   <span>₹{(totals.gstAmount/2).toFixed(2)}</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Advance Amount */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <p className="font-medium">Advance Amount</p>
+                <p className="text-gray-600">₹{advance.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Grand Total */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <p className="font-medium">Grand Total</p>
+                <p className="text-gray-600">₹{totals.grandTotal.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Total Amount Due */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center">
+                <p className="font-medium">Total Amount Due</p>
+                <p className="text-gray-600">₹{(totals.grandTotal - advance).toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -297,8 +325,8 @@ useEffect(() => {
               </select>
             </div>
             <div className="flex justify-between items-center text-xl font-bold">
-              <span>Grand Total:</span>
-              <span className="text-green-600">₹{totals.grandTotal.toFixed(2)}</span>
+              <span>Total Amount Due:</span>
+              <span className="text-green-600">₹{(totals.grandTotal - advance).toFixed(2)}</span>
             </div>
           </div>
         </div>

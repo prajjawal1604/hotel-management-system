@@ -90,6 +90,7 @@ const RoomDetailsModal = ({ space, onClose }) => {
             <label className="block text-sm font-medium mb-1">Base Price</label>
             <input
               type="number"
+              min="0"
               value={formData.basePrice}
               onChange={(e) => setFormData({ ...formData, basePrice: Number(e.target.value) })}
               className="w-full p-2 border rounded"
@@ -114,6 +115,7 @@ const RoomDetailsModal = ({ space, onClose }) => {
               <label className="block text-sm font-medium mb-1">Max Adults</label>
               <input
                 type="number"
+                min="1"
                 value={formData.maxOccupancy.adults}
                 onChange={(e) => setFormData({
                   ...formData,
@@ -129,6 +131,7 @@ const RoomDetailsModal = ({ space, onClose }) => {
               <label className="block text-sm font-medium mb-1">Max Kids</label>
               <input
                 type="number"
+                min="0"
                 value={formData.maxOccupancy.kids}
                 onChange={(e) => setFormData({
                   ...formData,

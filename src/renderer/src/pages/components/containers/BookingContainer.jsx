@@ -116,12 +116,12 @@ const BookingContainer = ({ space, category, onClose }) => {
     if (!formData.phoneNumber?.trim()) errors.phoneNumber = 'Phone number is required';
     if (!/^\d{10}$/.test(formData.phoneNumber)) errors.phoneNumber = 'Invalid phone number';
     if (!formData.gender) errors.gender = 'Gender is required';
-    if (!formData.age || formData.age < 18) errors.age = 'Guest must be at least 18 years old';
+    // if (!formData.age || formData.age < 18) errors.age = 'Guest must be at least 18 years old';
     if (!formData.aadharNumber || !/^\d{12}$/.test(formData.aadharNumber)) {
       errors.aadharNumber = 'Valid Aadhar number is required';
     }
-    if (!formData.nationality?.trim()) errors.nationality = 'Nationality is required';
-    if (!formData.address?.trim()) errors.address = 'Address is required';
+    // if (!formData.nationality?.trim()) errors.nationality = 'Nationality is required';
+    // if (!formData.address?.trim()) errors.address = 'Address is required';
 
     // Booking details validation
     if (!formData.checkIn) errors.checkIn = 'Check-in date is required';
@@ -176,6 +176,7 @@ const BookingContainer = ({ space, category, onClose }) => {
           // Booking details
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
+          advanceAmount: formData.advanceAmount,
           // Additional Guests
           additionalGuests: formData.additionalGuests.map(guest => ({
             ...guest,
@@ -224,6 +225,35 @@ const BookingContainer = ({ space, category, onClose }) => {
     }
   };
 
+  const handleCancelBooking = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+  
+      const result = await window.electron.cancelBooking({
+        bookingId: space.bookingId,
+        reason: "Booking cancelled by user"  // You could add a reason input if needed
+      });
+  
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to cancel booking');
+      }
+  
+      // Update store with new space data and stats
+      useRoomsStore.getState().cancelBooking(result.data.space._id);
+      useRoomsStore.getState().setStats(result.data.stats);
+  
+      // Close the modal
+      onClose();
+  
+    } catch (err) {
+      setError(err.message);
+      console.error('Cancel booking error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Render content based on current stage
   const renderContent = () => {
     switch (currentStage) {
@@ -264,11 +294,22 @@ const BookingContainer = ({ space, category, onClose }) => {
       <div className="bg-white rounded-lg w-full max-w-4xl min-h-[80vh] max-h-[90vh] flex flex-col m-4">
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
+          <div className='flex items-center gap-4'>
           <h2 className="text-xl font-bold">
             {currentStage === STAGES.BOOKING ? 'New Booking' : 
              currentStage === STAGES.SERVICES ? 'Add Services' : 'Checkout'} 
-            - {space.spaceName}
+            - {space.spaceName} 
           </h2>
+          {hasExistingBooking && (
+      <button
+        onClick={handleCancelBooking}
+        disabled={loading}
+        className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 
+          disabled:opacity-50 text-sm"
+      >
+        {loading ? 'Cancelling...' : 'Cancel Booking'}
+      </button>
+    )}</div>
           <button 
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"

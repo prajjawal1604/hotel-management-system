@@ -56,7 +56,12 @@ const Section = ({ title, icon: Icon, children, isOpen, onToggle }) => (
   </div>
 );
 
-const GuestDetailsModal = ({ guest, onClose }) => {
+const GuestDetailsModal = ({ space, onClose }) => {
+  // Check if we have an active booking
+  const booking = space.bookingId;
+  const primaryGuest = booking?.guestId;
+  const additionalGuests = booking?.additionalGuestIds || [];
+  const services = booking?.serviceIds || [];
   const [sections, setSections] = useState({
     personal: true,
     business: false,
@@ -71,7 +76,7 @@ const GuestDetailsModal = ({ guest, onClose }) => {
     }));
   };
 
-  if (!guest) {
+  if (!booking) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-white p-6 rounded-lg max-w-2xl w-full mx-4">
@@ -86,7 +91,7 @@ const GuestDetailsModal = ({ guest, onClose }) => {
       <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b p-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold">Guest Details</h2>
+          <h2 className="text-2xl font-bold">Guest Details - {space.spaceName}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -98,7 +103,7 @@ const GuestDetailsModal = ({ guest, onClose }) => {
         <div className="p-6 space-y-4">
           {/* Personal Information */}
           <Section
-            title="Personal Information"
+            title="Primary Guest"
             icon={User}
             isOpen={sections.personal}
             onToggle={() => toggleSection('personal')}
@@ -106,37 +111,41 @@ const GuestDetailsModal = ({ guest, onClose }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-gray-600">Name</label>
-                <p className="font-medium">{guest.name}</p>
+                <p className="font-medium">{primaryGuest?.fullName}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">Phone</label>
-                <p className="font-medium">{formatPhoneNumber(guest.phone_no)}</p>
+                <p className="font-medium">{formatPhoneNumber(primaryGuest?.phoneNumber)}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">Age</label>
-                <p className="font-medium">{guest.age}</p>
+                <p className="font-medium">{primaryGuest?.age}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">Gender</label>
-                <p className="font-medium">{guest.gender}</p>
+                <p className="font-medium">{primaryGuest?.gender}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">Aadhar</label>
-                <p className="font-medium">{formatPhoneNumber(guest.aadhar)}</p>
+                <p className="font-medium">{formatPhoneNumber(primaryGuest?.aadharNumber)}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">Nationality</label>
-                <p className="font-medium">{guest.nationality || 'Not provided'}</p>
+                <p className="font-medium">{primaryGuest?.nationality || 'Not provided'}</p>
+              </div><div >
+                <label className="text-sm text-gray-600">Advance Amount</label>
+                <p className="font-medium">{booking.advanceAmount || 'Not provided'}</p>
               </div>
               <div className="col-span-2">
                 <label className="text-sm text-gray-600">Address</label>
-                <p className="font-medium">{guest.permanent_address || 'Not provided'}</p>
+                <p className="font-medium">{primaryGuest?.address || 'Not provided'}</p>
               </div>
+              
             </div>
           </Section>
 
           {/* Business Information */}
-          {(guest.company_name || guest.GSTIN || guest.designation) && (
+          {(primaryGuest?.companyName || primaryGuest?.gstin || primaryGuest?.designation) && (
             <Section
               title="Business Information"
               icon={Building}
@@ -144,55 +153,59 @@ const GuestDetailsModal = ({ guest, onClose }) => {
               onToggle={() => toggleSection('business')}
             >
               <div className="grid grid-cols-2 gap-4">
-                {guest.company_name && (
+                {primaryGuest?.companyName && (
                   <div>
                     <label className="text-sm text-gray-600">Company</label>
-                    <p className="font-medium">{guest.company_name}</p>
+                    <p className="font-medium">{primaryGuest.companyName}</p>
                   </div>
                 )}
-                {guest.GSTIN && (
+                {primaryGuest?.gstin && (
                   <div>
                     <label className="text-sm text-gray-600">GSTIN</label>
-                    <p className="font-medium">{guest.GSTIN}</p>
+                    <p className="font-medium">{primaryGuest.gstin}</p>
                   </div>
                 )}
-                {guest.designation && (
+                {primaryGuest?.designation && (
                   <div>
                     <label className="text-sm text-gray-600">Designation</label>
-                    <p className="font-medium">{guest.designation}</p>
+                    <p className="font-medium">{primaryGuest.designation}</p>
                   </div>
                 )}
               </div>
             </Section>
           )}
 
-          {/* Dependants */}
-          {guest.dependants?.length > 0 && (
+          {/* Additional Guests */}
+          {additionalGuests.length > 0 && (
             <Section
-              title={`Dependants (${guest.dependants.length})`}
+              title={`Additional Guests (${additionalGuests.length})`}
               icon={User}
               isOpen={sections.dependants}
               onToggle={() => toggleSection('dependants')}
             >
               <div className="space-y-4">
-                {guest.dependants.map((dep, index) => (
+                {additionalGuests.map((guest, index) => (
                   <div key={index} className="bg-gray-50 p-4 rounded-lg">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm text-gray-600">Name</label>
-                        <p className="font-medium">{dep.name}</p>
+                        <p className="font-medium">{guest.fullName}</p>
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">Phone</label>
-                        <p className="font-medium">{formatPhoneNumber(dep.phone_no)}</p>
+                        <p className="font-medium">{formatPhoneNumber(guest.phoneNumber)}</p>
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">Age</label>
-                        <p className="font-medium">{dep.age}</p>
+                        <p className="font-medium">{guest.age}</p>
                       </div>
                       <div>
                         <label className="text-sm text-gray-600">Gender</label>
-                        <p className="font-medium">{dep.gender}</p>
+                        <p className="font-medium">{guest.gender}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-600">Type</label>
+                        <p className="font-medium">{guest.isKid ? 'Child' : 'Adult'}</p>
                       </div>
                     </div>
                   </div>
@@ -202,9 +215,9 @@ const GuestDetailsModal = ({ guest, onClose }) => {
           )}
 
           {/* Services */}
-          {guest.services?.length > 0 && (
+          {services.length > 0 && (
             <Section
-              title={`Services (${guest.services.length})`}
+              title={`Services (${services.length})`}
               icon={Building}
               isOpen={sections.services}
               onToggle={() => toggleSection('services')}
@@ -217,26 +230,27 @@ const GuestDetailsModal = ({ guest, onClose }) => {
                       <th className="px-4 py-2 text-left">Type</th>
                       <th className="px-4 py-2 text-right">Units</th>
                       <th className="px-4 py-2 text-right">Cost</th>
-                      <th className="px-4 py-2 text-left">Date</th>
+                      <th className="px-4 py-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {guest.services.map((service, index) => (
+                    {services.map((service, index) => (
                       <tr key={index} className="border-t">
-                        <td className="px-4 py-2">{service.name}</td>
-                        <td className="px-4 py-2">{service.type}</td>
+                        <td className="px-4 py-2">{service.serviceName}</td>
+                        <td className="px-4 py-2">{service.serviceType}</td>
                         <td className="px-4 py-2 text-right">{service.units}</td>
-                        <td className="px-4 py-2 text-right">₹{service.cost}</td>
-                        <td className="px-4 py-2">{service.date} {service.time}</td>
+                        <td className="px-4 py-2 text-right">₹{service.costPerUnit}</td>
+                        <td className="px-4 py-2 text-right">
+                          ₹{(service.units * service.costPerUnit).toFixed(2)}
+                        </td>
                       </tr>
                     ))}
                     <tr className="border-t font-medium">
-                      <td colSpan="3" className="px-4 py-2 text-right">Total:</td>
+                      <td colSpan="4" className="px-4 py-2 text-right">Total:</td>
                       <td className="px-4 py-2 text-right">
-                        ₹{guest.services.reduce((sum, service) => 
-                          sum + (service.units * service.cost), 0).toFixed(2)}
+                        ₹{services.reduce((sum, service) => 
+                          sum + (service.units * service.costPerUnit), 0).toFixed(2)}
                       </td>
-                      <td></td>
                     </tr>
                   </tbody>
                 </table>
@@ -250,11 +264,11 @@ const GuestDetailsModal = ({ guest, onClose }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm text-gray-600">Check-in</label>
-                <p className="font-medium">{formatDate(guest.checkin)}</p>
+                <p className="font-medium">{formatDate(booking?.checkIn)}</p>
               </div>
               <div>
                 <label className="text-sm text-gray-600">Check-out</label>
-                <p className="font-medium">{formatDate(guest.checkout)}</p>
+                <p className="font-medium">{formatDate(booking?.checkOut)}</p>
               </div>
             </div>
           </div>

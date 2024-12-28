@@ -78,8 +78,8 @@ const bookingSchema = new mongoose.Schema({
     serviceIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Service" }],
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
-    advanceAmount: { type: Number, default: 0 },
-    bookingType: { type: String, enum: ["Advance", "CURRENT"], required: true },
+    advanceAmount: { type: Number},
+    bookingType: { type: String, enum: ["ADVANCE", "CURRENT"], required: true },
     modeOfPayment: { type: String, enum: ["CASH", "CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"], required: false },
     status: { type: String, enum: ["ONGOING", "COMPLETED", "CANCELLED"], default: "ONGOING" }
 });
