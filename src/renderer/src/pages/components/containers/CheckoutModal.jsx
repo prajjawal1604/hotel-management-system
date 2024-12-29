@@ -182,10 +182,13 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       );
       const billingHtml = ReactDOMServer.renderToString(billHtml);
       const path = await getDesktopPath();
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+
       const pdfOptions = {
         htmlContent: ReactDOMServer.renderToString(billHtml),
         imagePaths: [],
-        savePath: `${path}`,
+        savePath: `${path}/${orgDetails.orgName}/${currentYear}/${currentMonth}`,
         fileName: `${space.spaceName}-${result.data._id}.pdf`,
       };
 
