@@ -155,14 +155,17 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           guestNationality={formData.nationality}
           roomName={space.spaceName}
           roomType={space.spaceType}
-          checkIn={checkInDate.toLocaleString()}
-          checkOut={checkOutDate.toLocaleString()}
+          checkIn={checkInDate.toLocaleDateString()}
+          checkOut={checkOutDate.toLocaleDateString()}
           basePrice={space.basePrice}
           days={days}
           roomCost={totals.roomCharges}
           services={formData.services}
           servicesSubtotal={totals.serviceCharges}
-          misc={miscCharges}
+          misc={miscCharges.map(charge => ({
+            ...charge,
+            amount: parseFloat(charge.amount) || 0
+          }))}
           miscSubtotal={totals.miscTotal}
           gstPercentage={orgDetails.gst}
           sgstCost={totals.gstAmount / 2}
@@ -172,7 +175,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           advanceAmount={advance}
           amountDue={totals.grandTotal - advance}
           modeOfPayment={modeOfPayment}
-          gstID={orgDetails.gst}
+          gstID={orgDetails.gstNumber}
           orgName={orgDetails.orgName}
           orgEmail={orgDetails.email}
         />
