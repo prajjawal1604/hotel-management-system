@@ -8,6 +8,7 @@ import connectionManager from './database/connectionManager';
 import models from './database/models';
 import mongoose, { model } from 'mongoose';
 import { path } from 'pdfkit';
+import nodemailer from 'nodemailer';
 
 // Window creation and initialization
 function createWindow() {
@@ -1619,5 +1620,39 @@ ipcMain.handle('assignRoom', async (_, { bookingId, spaceId }) => {
       success: false, 
       message: error.message || 'Failed to assign room' 
     };
+  }
+});
+
+// Email Sending Handler
+ipcMain.handle('send-email', async (_, { to, subject, text, html, attachments }) => {
+  try {
+    console.log('Preparing to send email...');
+    
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.hostinger.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'prajjawal@quasar-tech.in',
+        pass: 'Bbasu@123', // Replace with an environment variable in production
+      },
+    });
+
+    const mailOptions = {
+      from: '"Hotel Management System" <prajjawal@quasar-tech.in>',
+      to,
+      subject,
+      text,
+      html,
+      attachments: attachments || [], // Attachments are optional
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.messageId);
+
+    return { success: true, message: 'Email sent successfully' };
+  } catch (error) {
+    console.error('Failed to send email:', error.message);
+    return { success: false, message: 'Failed to send email' };
   }
 });
