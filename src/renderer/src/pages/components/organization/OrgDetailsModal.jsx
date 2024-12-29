@@ -127,6 +127,7 @@ const OrgDetailsModal = ({ onClose }) => {
               className="w-full px-3 py-2 border rounded-md"
               required
               maxLength={100}
+              disabled
             />
           </div>
 

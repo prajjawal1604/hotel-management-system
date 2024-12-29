@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import { X, FileText, PlusCircle } from 'lucide-react';
-import HotelBill from './HotelBill'; // Assuming HotelBill component is already created
+import HotelBill from './HotelBill';
 import { useRoomsStore } from '../../../store/roomsStore';
 
-// Payment modes from schema
 const PAYMENT_MODES = {
   CASH: 'CASH',
   CREDIT_CARD: 'CREDIT_CARD',
@@ -19,6 +18,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   const [error, setError] = useState(null);
   const [modeOfPayment, setModeOfPayment] = useState(PAYMENT_MODES.CASH);
   const [miscCharges, setMiscCharges] = useState([]);
+  const [checkoutDateTime, setCheckoutDateTime] = useState(new Date().toISOString().slice(0, 16));
 
   const advance = parseFloat(formData.advanceAmount);
   const orgDetails = useRoomsStore((state) => state.orgDetails);
@@ -30,11 +30,10 @@ const CheckoutModal = ({ formData, space, onClose }) => {
         setIsLoading(true);
         setError(null);
 
-        // We pass the data needed for calculation
         const result = await window.electron.calculateCheckout({
           spaceId: space._id,
           checkIn: formData.checkIn,
-          checkOut: new Date(),
+          checkOut: new Date(checkoutDateTime),
           services: formData.services
         });
 
@@ -51,7 +50,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
     };
 
     calculateCheckout();
-  }, [space._id, formData.checkIn, formData.checkOut, formData.services]);
+  }, [space._id, formData.checkIn, checkoutDateTime, formData.services]);
 
   // Handle misc charges
   const addMiscCharge = () => {
@@ -90,6 +89,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       grandTotal: subtotal + gstAmount
     };
   };
+
   // Get desktop path based on OS
   const getDesktopPath = async () => {
     const homeDir = await window.electron.getPath('home');
@@ -106,9 +106,6 @@ const CheckoutModal = ({ formData, space, onClose }) => {
     }
   };
 
-  
-
-
   // Handle checkout
   const handleCheckout = async () => {
     try {
@@ -120,8 +117,9 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   
       const checkoutData = {
         spaceId: space._id,
-        bookingId: space.bookingId, // Add booking ID
+        bookingId: space.bookingId,
         modeOfPayment,
+        checkOut: new Date(checkoutDateTime),
         charges: {
           roomCharges: totals.roomCharges,
           serviceCharges: totals.serviceCharges,
@@ -140,7 +138,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
 
       // Generate PDF
       const checkInDate = new Date(formData.checkIn);
-      const checkOutDate = new Date(formData.checkOut);
+      const checkOutDate = new Date(checkoutDateTime);
       const timeDiff = Math.abs(checkOutDate - checkInDate);
       const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
 
@@ -180,6 +178,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           orgEmail={orgDetails.email}
         />
       );
+
       const billingHtml = ReactDOMServer.renderToString(billHtml);
       const path = await getDesktopPath();
       const currentYear = new Date().getFullYear();
@@ -197,7 +196,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       console.log('PDF generated successfully at:', pdfResult.filePath);
 
       const emailData = {
-        to: orgDetails.email, // Replace with the hotel's owner email
+        to: orgDetails.email,
         subject: 'Checkout Details',  
         html: billingHtml,
       };
@@ -269,7 +268,15 @@ const CheckoutModal = ({ formData, space, onClose }) => {
             <div>
               <p><span className="font-medium">Total Guests:</span> {1 + formData.additionalGuests.length}</p>
               <p><span className="font-medium">Room Type:</span> {space.spaceType}</p>
-              <p><span className="font-medium">Check-out:</span> {new Date().toLocaleString()}</p>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Check-out:</span>
+                <input
+                  type="datetime-local"
+                  value={checkoutDateTime}
+                  onChange={(e) => setCheckoutDateTime(e.target.value)}
+                  className="border rounded-md px-2 py-1"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -284,9 +291,17 @@ const CheckoutModal = ({ formData, space, onClose }) => {
                 <p className="font-medium">Room Charges</p>
                 <p className="text-gray-600">₹{totals.roomCharges.toFixed(2)}</p>
               </div>
-              <p className="text-sm text-gray-500 mt-1">
-                {checkoutData.totalDays} days @ ₹{space.basePrice}/day
-              </p>
+              {(() => {
+                const checkInDate = new Date(formData.checkIn);
+                const checkOutDate = new Date(checkoutDateTime);
+                const timeDiff = Math.abs(checkOutDate - checkInDate);
+                const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                return (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {days} days @ ₹{space.basePrice}/day
+                  </p>
+                );
+              })()}
             </div>
 
             {/* Service Charges */}
