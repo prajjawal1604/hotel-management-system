@@ -47,7 +47,7 @@ const BookingForm = ({
           fullName: '',
           phoneNumber: '',
           gender: '',
-          age: '',
+          age: 0,
           aadharNumber: '',
           isKid: false
         }
@@ -247,7 +247,7 @@ const BookingForm = ({
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">Nationality*</label>
+            <label className="block text-sm font-medium text-gray-600">Nationality</label>
             <input
               type="text"
               value={formData.nationality}
@@ -265,7 +265,7 @@ const BookingForm = ({
           </div>
 
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-600">Address*</label>
+            <label className="block text-sm font-medium text-gray-600">Address</label>
             <textarea
               value={formData.address}
               onChange={(e) => handlePrimaryGuestChange('address', e.target.value)}
@@ -436,6 +436,7 @@ const BookingForm = ({
                   value={guest.gender}
                   onChange={(e) => handleAdditionalGuestChange(index, 'gender', e.target.value)}
                   disabled={disabled}
+                  required
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 disabled:bg-gray-50 disabled:text-gray-500"
                   
                 >
@@ -447,7 +448,7 @@ const BookingForm = ({
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-600">Age*</label>
+                <label className="block text-sm font-medium text-gray-600">Age</label>
                 <input
                   type="number"
                   value={guest.age}
@@ -461,7 +462,7 @@ const BookingForm = ({
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-600">Aadhar Number*</label>
+                <label className="block text-sm font-medium text-gray-600">Aadhar Number</label>
                 <input
                   type="text"
                   value={guest.aadharNumber}

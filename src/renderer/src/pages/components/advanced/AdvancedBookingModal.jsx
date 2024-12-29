@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Calendar, User, Phone, Clock, Filter, ChevronDown } from 'lucide-react';
 import AdvancedBookingForm from './AdvancedBookingForm';
+import RoomAssignmentModal from './RoomAssignmentModal';
+import BookingForm from '../containers/BookingForm';
 
 const DATE_FILTERS = {
   ALL: 'all',
@@ -20,6 +22,15 @@ const AdvancedBookingModal = ({ onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState(DATE_FILTERS.ALL);
   const [showFilters, setShowFilters] = useState(false);
+
+
+  const [showRoomAssignModal, setShowRoomAssignModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+
+  const [showBookingForm, setShowBookingForm] = useState(false);
+  const [selectedRoomData, setSelectedRoomData] = useState(null);
+
+
 
   // Fetch bookings
   const fetchBookings = async () => {
@@ -68,6 +79,33 @@ const AdvancedBookingModal = ({ onClose }) => {
       setLoading(false);
     }
   };
+
+  
+  // In AdvancedBookingModal
+const handleRoomSelected = (data) => {
+  console.log("Room selected:", data);
+  
+  // Prepare form data from advance booking
+  const formData = {
+    fullName: selectedBooking.guestId.fullName,
+    phoneNumber: selectedBooking.guestId.phoneNumber,
+    gender: selectedBooking.guestId.gender,
+    age: selectedBooking.guestId.age,
+    aadharNumber: selectedBooking.guestId.aadharNumber,
+    checkIn: selectedBooking.checkIn,
+    checkOut: selectedBooking.checkOut,
+    advanceAmount: selectedBooking.advanceAmount,
+    additionalGuests: selectedBooking.additionalGuestIds || [],
+    // Add any other fields from advance booking
+  };
+
+  setShowBookingForm(true);
+  setSelectedRoomData({
+    space: data.space,
+    formData: formData,
+    bookingId: selectedBooking._id // Pass the existing booking ID
+  });
+};
 
   // Filter bookings
   const getFilteredBookings = () => {
@@ -118,14 +156,14 @@ const AdvancedBookingModal = ({ onClose }) => {
   };
 
   // Handle room assignment
-  const handleAssignRoom = async (bookingId) => {
+  const handleAssignRoom = async (booking) => {
     try {
+      console.log('Assign room with booking:', booking);  // Add this log
       setError(null);
-      // TODO: Implement room selection and assignment
-      alert('Room assignment functionality coming soon!');
+      setSelectedBooking(booking);  // Set booking here
+      setShowRoomAssignModal(true);
     } catch (err) {
       setError(err.message);
-      console.error('Error assigning room:', err);
     }
   };
 
@@ -177,7 +215,7 @@ const AdvancedBookingModal = ({ onClose }) => {
       <div className="flex justify-end gap-3">
         {booking.status === 'ONGOING' && (
           <button
-            onClick={() => handleAssignRoom(booking._id)}
+            onClick={() => handleAssignRoom(booking)}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
               transition-colors"
           >
@@ -188,7 +226,10 @@ const AdvancedBookingModal = ({ onClose }) => {
     </div>
   );
 
+  
+
   return (
+    <>
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg w-full max-w-5xl h-[90vh] flex flex-col m-4">
         {/* Header */}
@@ -296,7 +337,48 @@ const AdvancedBookingModal = ({ onClose }) => {
           )}
         </div>
       </div>
+      {showRoomAssignModal && (
+          <RoomAssignmentModal
+            booking={selectedBooking}
+            onRoomSelected={handleRoomSelected}
+            onClose={() => {
+              setShowRoomAssignModal(false);
+              setSelectedBooking(null);
+            }
+          }
+          />
+        )}
     </div>
+    {showBookingForm && (
+  <>
+  <BookingForm 
+    space={selectedRoomData.space}
+    formData={selectedRoomData.formData}  // Pass prepared formData
+    bookingId={selectedRoomData.bookingId} // Pass existing booking ID
+    onNext={async (formData) => {
+      try {
+        const result = await window.electron.createBooking({
+          ...formData,
+          spaceId: selectedRoomData.space._id,
+          bookingId: selectedRoomData.bookingId // Pass the existing booking ID
+        });
+
+        if (result.success) {
+          setShowBookingForm(false);
+          await fetchBookings();
+        }
+      } catch (error) {
+        console.error('Error in booking:', error);
+      }
+    }}
+    onClose={() => {
+      setShowBookingForm(false);
+      setSelectedRoomData(null);
+    }}
+  />
+  </>
+)}
+    </>
   );
 };
 

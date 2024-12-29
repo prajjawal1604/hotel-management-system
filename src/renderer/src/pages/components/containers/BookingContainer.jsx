@@ -134,12 +134,12 @@ const BookingContainer = ({ space, category, onClose }) => {
     if (formData.additionalGuests.length > 0) {
       formData.additionalGuests.forEach((guest, index) => {
         if (!guest.fullName?.trim()) errors[`additionalGuest.${index}.fullName`] = 'Name is required';
-        if (guest.phoneNumber && !/^\d{10}$/.test(guest.phoneNumber)) {
-          errors[`additionalGuest.${index}.phoneNumber`] = 'Invalid phone number';
-        }
-        if (!guest.aadharNumber || !/^\d{12}$/.test(guest.aadharNumber)) {
-          errors[`additionalGuest.${index}.aadharNumber`] = 'Valid Aadhar number is required';
-        }
+        // if (guest.phoneNumber && !/^\d{10}$/.test(guest.phoneNumber)) {
+        //   errors[`additionalGuest.${index}.phoneNumber`] = 'Invalid phone number';
+        // }
+        // if (!guest.aadharNumber || !/^\d{12}$/.test(guest.aadharNumber)) {
+        //   errors[`additionalGuest.${index}.aadharNumber`] = 'Valid Aadhar number is required';
+        // }
       });
     }
 
@@ -342,11 +342,18 @@ const BookingContainer = ({ space, category, onClose }) => {
             )}
             <div className="flex gap-2">
               <button
-                onClick={handleNext}
+                onClick={() => {
+                  if (hasExistingBooking) {
+                    setCurrentStage(STAGES.SERVICES);
+                  } else {
+                    handleNext();
+                  }
+                }}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 disabled={loading}
               >
                 {loading ? 'Processing...' : 
+                 hasExistingBooking && currentStage === STAGES.BOOKING ? 'Next' :
                  currentStage === STAGES.BOOKING ? 'Save & Continue' : 
                  'Proceed to Checkout'}
               </button>

@@ -960,54 +960,118 @@ ipcMain.handle('get-revenue-stats', async () => {
  */
 ipcMain.handle('create-booking', async (_, bookingData) => {
   try {
-    console.log('Creating new booking:', JSON.stringify(bookingData, null, 2));
+    console.log('Creating/Updating booking:', JSON.stringify(bookingData, null, 2));
     const { Space, PrimaryGuest, AdditionalGuest, Booking } = models.getOrgModels();
 
-    // Create primary guest
-    const primaryGuest = await PrimaryGuest.create({
-      fullName: bookingData.fullName,
-      phoneNumber: bookingData.phoneNumber,
-      gender: bookingData.gender,
-      age: Number(bookingData.age),
-      aadharNumber: bookingData.aadharNumber,
-      nationality: bookingData.nationality,
-      address: bookingData.address,
-      companyName: bookingData.companyName || null,
-      gstin: bookingData.gstin || null,
-      designation: bookingData.designation || null,
-      purposeOfVisit: bookingData.purposeOfVisit || null
-    });
+    let booking;
+    let primaryGuest;
+    let additionalGuestIds = [];
 
-    // Create additional guests if any
-    const additionalGuestIds = [];
-    if (bookingData.additionalGuests?.length > 0) {
-      const additionalGuests = await AdditionalGuest.insertMany(
-        bookingData.additionalGuests.map(guest => ({
-          fullName: guest.fullName,
-          phoneNumber: guest.phoneNumber,
-          gender: guest.gender,
-          age: Number(guest.age),
-          aadharNumber: guest.aadharNumber,
-          isKid: guest.isKid || false
-        }))
+    if (bookingData.bookingId) {
+      // Update existing booking
+      booking = await Booking.findByIdAndUpdate(
+        bookingData.bookingId,
+        {
+          spaceId: bookingData.spaceId,
+          checkIn: new Date(bookingData.checkIn),
+          checkOut: new Date(bookingData.checkOut),
+          bookingType: 'CURRENT',
+          status: 'ONGOING',
+          advanceAmount: bookingData.advanceAmount
+        },
+        { new: true }
       );
-      additionalGuestIds.push(...additionalGuests.map(g => g._id));
+
+      // Update primary guest
+      primaryGuest = await PrimaryGuest.findByIdAndUpdate(
+        booking.guestId,
+        {
+          fullName: bookingData.fullName,
+          phoneNumber: bookingData.phoneNumber,
+          gender: bookingData.gender,
+          age: Number(bookingData.age),
+          aadharNumber: bookingData.aadharNumber,
+          nationality: bookingData.nationality,
+          address: bookingData.address,
+          companyName: bookingData.companyName || null,
+          gstin: bookingData.gstin || null,
+          designation: bookingData.designation || null,
+          purposeOfVisit: bookingData.purposeOfVisit || null
+        },
+        { new: true }
+      );
+
+      // Update additional guests if any
+      if (bookingData.additionalGuests?.length > 0) {
+        // First remove old additional guests
+        await AdditionalGuest.deleteMany({ _id: { $in: booking.additionalGuestIds }});
+        
+        // Create new additional guests
+        const additionalGuests = await AdditionalGuest.insertMany(
+          bookingData.additionalGuests.map(guest => ({
+            fullName: guest.fullName,
+            phoneNumber: guest.phoneNumber,
+            gender: guest.gender,
+            age: Number(guest.age),
+            aadharNumber: guest.aadharNumber,
+            isKid: guest.isKid || false
+          }))
+        );
+        additionalGuestIds = additionalGuests.map(g => g._id);
+
+        // Update booking with new additional guest IDs
+        booking = await Booking.findByIdAndUpdate(
+          booking._id,
+          { additionalGuestIds },
+          { new: true }
+        );
+      }
+    } else {
+      // Create new booking
+      primaryGuest = await PrimaryGuest.create({
+        fullName: bookingData.fullName,
+        phoneNumber: bookingData.phoneNumber,
+        gender: bookingData.gender,
+        age: Number(bookingData.age),
+        aadharNumber: bookingData.aadharNumber,
+        nationality: bookingData.nationality,
+        address: bookingData.address,
+        companyName: bookingData.companyName || null,
+        gstin: bookingData.gstin || null,
+        designation: bookingData.designation || null,
+        purposeOfVisit: bookingData.purposeOfVisit || null
+      });
+
+      // Create additional guests if any
+      if (bookingData.additionalGuests?.length > 0) {
+        const additionalGuests = await AdditionalGuest.insertMany(
+          bookingData.additionalGuests.map(guest => ({
+            fullName: guest.fullName,
+            phoneNumber: guest.phoneNumber,
+            gender: guest.gender,
+            age: Number(guest.age),
+            aadharNumber: guest.aadharNumber,
+            isKid: guest.isKid || false
+          }))
+        );
+        additionalGuestIds = additionalGuests.map(g => g._id);
+      }
+
+      // Create new booking
+      booking = await Booking.create({
+        spaceId: bookingData.spaceId,
+        guestId: primaryGuest._id,
+        additionalGuestIds,
+        checkIn: new Date(bookingData.checkIn),
+        checkOut: new Date(bookingData.checkOut),
+        bookingType: 'CURRENT',
+        status: 'ONGOING',
+        advanceAmount: bookingData.advanceAmount,
+        serviceIds: [] // Initially empty, will be added later
+      });
     }
 
-    // Create booking record
-    const booking = await Booking.create({
-      spaceId: bookingData.spaceId,
-      guestId: primaryGuest._id,
-      additionalGuestIds,
-      checkIn: new Date(bookingData.checkIn),
-      checkOut: new Date(bookingData.checkOut),
-      bookingType: 'CURRENT',
-      status: 'ONGOING',
-      advanceAmount: bookingData.advanceAmount,
-      serviceIds: [] // Initially empty, will be added later
-    });
-
-    // Update space status and link booking
+    // Update space status for both new and updated bookings
     await Space.findByIdAndUpdate(bookingData.spaceId, {
       currentStatus: 'OCCUPIED',
       bookingId: booking._id.toString(),
@@ -1025,7 +1089,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
     };
 
   } catch (error) {
-    console.error('Create booking error:', error);
+    console.error('Create/Update booking error:', error);
     return { success: false, message: error.message };
   }
 });
@@ -1234,7 +1298,8 @@ ipcMain.handle('complete-checkout', async (_, checkoutData) => {
     // Update booking status
     await Booking.findByIdAndUpdate(checkoutData.bookingId, {
       status: 'COMPLETED',
-      modeOfPayment: checkoutData.modeOfPayment
+      modeOfPayment: checkoutData.modeOfPayment, 
+      checkOut: new Date()
     });
 
     // Update space status
@@ -1410,31 +1475,36 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
     }
 
     // Create primary guest
-    const primaryGuest = await PrimaryGuest.create({
+    const primaryGuestData = {
       fullName: bookingData.fullName,
       phoneNumber: bookingData.phoneNumber,
       gender: bookingData.gender,
       age: Number(bookingData.age || 0),
       aadharNumber: bookingData.aadharNumber
-    });
+    };
+
+    console.log('Creating primary guest:', primaryGuestData);
+    const primaryGuest = await PrimaryGuest.create(primaryGuestData);
 
     // Create additional guests if any
     const additionalGuestIds = [];
-    if (bookingData.additionalGuests?.length > 0) {
-      const additionalGuests = await AdditionalGuest.insertMany(
-        bookingData.additionalGuests.map(guest => ({
-          fullName: guest.fullName,
-          gender: guest.gender,
-          age: Number(guest.age || 0),
-          aadharNumber: guest.aadharNumber,
-          isKid: guest.isKid || false
-        }))
-      );
-      additionalGuestIds.push(...additionalGuests.map(g => g._id));
+    if (bookingData.additionalGuests && bookingData.additionalGuests.length > 0) {
+      console.log('Processing additional guests:', bookingData.additionalGuests);
+      
+      for (const guestData of bookingData.additionalGuests) {
+        const additionalGuest = await AdditionalGuest.create({
+          fullName: guestData.fullName,
+          gender: guestData.gender,
+          age: Number(guestData.age || 0),
+          aadharNumber: guestData.aadharNumber,
+          isKid: guestData.isKid || false
+        });
+        additionalGuestIds.push(additionalGuest._id);
+      }
     }
 
     // Create advance booking
-    const booking = await Booking.create({
+    const bookingRecord = {
       guestId: primaryGuest._id,
       additionalGuestIds,
       checkIn: new Date(bookingData.checkIn),
@@ -1442,12 +1512,21 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
       advanceAmount: Number(bookingData.advanceAmount || 0),
       bookingType: 'ADVANCE',
       status: 'ONGOING'
-    });
+    };
+
+    console.log('Creating booking record:', bookingRecord);
+    const booking = await Booking.create(bookingRecord);
 
     // Fetch complete booking with populated fields
     const populatedBooking = await Booking.findById(booking._id)
-      .populate('guestId')
-      .populate('additionalGuestIds')
+      .populate({
+        path: 'guestId',
+        model: 'primary_guests'
+      })
+      .populate({
+        path: 'additionalGuestIds',
+        model: 'additional_guests'
+      })
       .lean();
 
     return {
@@ -1455,14 +1534,14 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
       data: {
         ...populatedBooking,
         _id: populatedBooking._id.toString(),
-        guestId: {
+        guestId: populatedBooking.guestId ? {
           ...populatedBooking.guestId,
           _id: populatedBooking.guestId._id.toString()
-        },
-        additionalGuestIds: populatedBooking.additionalGuestIds.map(guest => ({
+        } : null,
+        additionalGuestIds: populatedBooking.additionalGuestIds?.map(guest => ({
           ...guest,
           _id: guest._id.toString()
-        }))
+        })) || []
       }
     };
 

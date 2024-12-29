@@ -33,7 +33,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
         const result = await window.electron.calculateCheckout({
           spaceId: space._id,
           checkIn: formData.checkIn,
-          checkOut: formData.checkOut,
+          checkOut: new Date(),
           services: formData.services
         });
 
@@ -79,7 +79,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
     );
 
     const subtotal = checkoutData.roomCharges + checkoutData.serviceCharges + miscTotal;
-    const gstAmount = subtotal * (orgDetails.gst / 100);
+    const gstAmount = (subtotal - miscTotal) * (orgDetails.gst / 100);
 
     return {
       roomCharges: checkoutData.roomCharges,
@@ -179,7 +179,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
             <div>
               <p><span className="font-medium">Total Guests:</span> {1 + formData.additionalGuests.length}</p>
               <p><span className="font-medium">Room Type:</span> {space.spaceType}</p>
-              <p><span className="font-medium">Check-out:</span> {new Date(formData.checkOut).toLocaleString()}</p>
+              <p><span className="font-medium">Check-out:</span> {new Date().toLocaleString()}</p>
             </div>
           </div>
         </div>

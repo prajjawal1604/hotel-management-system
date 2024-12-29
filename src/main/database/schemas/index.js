@@ -57,7 +57,7 @@ const additionalGuestSchema = new mongoose.Schema({
     fullName: String,
     phoneNumber: String,
     gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"] },
-    age: Number,
+    age: {type:Number, default: 0},
     aadharNumber: String,
     isKid: Boolean,
     documents: String

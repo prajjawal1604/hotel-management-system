@@ -119,7 +119,7 @@ const ServicesForm = ({ formData, setFormData, space }) => {
         }
 
         // Update store to reflect deletion
-        useRoomsStore.getState().removeBookingService(service._id);
+        // useRoomsStore.getState().removeBookingService(service._id);
       }
 
       // Remove from local state
