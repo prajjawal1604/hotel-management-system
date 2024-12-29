@@ -7,8 +7,12 @@ import { initializeDatabases } from './database/dbInit';
 import connectionManager from './database/connectionManager';
 import models from './database/models';
 import mongoose, { model } from 'mongoose';
-import { path } from 'pdfkit';
+// import { path } from 'pdfkit';
 import nodemailer from 'nodemailer';
+import puppeteer from 'puppeteer';
+import fs from 'fs';
+import path from 'path';
+
 
 // Window creation and initialization
 function createWindow() {
@@ -1654,5 +1658,98 @@ ipcMain.handle('send-email', async (_, { to, subject, text, html, attachments })
   } catch (error) {
     console.error('Failed to send email:', error.message);
     return { success: false, message: 'Failed to send email' };
+  }
+});
+
+// PDF Generation Handler
+ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePath, fileName }) => {
+  try {
+    console.log('Preparing to generate PDF...');
+
+    // Ensure savePath and fileName are provided
+    if (!savePath || !fileName) {
+      throw new Error('Save path and file name are required');
+    }
+
+    // Ensure the directory exists
+    if (!fs.existsSync(savePath)) {
+      fs.mkdirSync(savePath, { recursive: true });
+    }
+
+    // Construct the full file path
+    const outputFilePath = path.join(savePath, fileName);
+
+    // Function to convert image to Base64
+    const getImageAsBase64 = (imagePath) => {
+      const fileData = fs.readFileSync(imagePath);
+      return `data:image/jpeg;base64,${fileData.toString('base64')}`;
+    };
+
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    let additionalContent = '';
+
+    // Add all images as additional content if imagePaths is provided and not empty
+    if (Array.isArray(imagePaths) && imagePaths.length > 0) {
+      additionalContent = imagePaths.map((imagePath, index) => {
+        const base64Image = getImageAsBase64(imagePath);
+        return `
+          <div class="page-break"></div>
+          <div class="content">
+            <h1>Attached Image ${index + 1}</h1>
+            <img src="${base64Image}" style="max-width: 100%; height: auto; margin-bottom: 20px;" />
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Combine the HTML content and additional content
+    const finalContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+            .content { padding: 20px; text-align: center; }
+            .page-break { page-break-before: always; }
+          </style>
+        </head>
+        <body>
+          ${htmlContent}
+          ${additionalContent}
+        </body>
+      </html>
+    `;
+
+    // Load the final HTML content
+    await page.setContent(finalContent);
+
+    // Generate the PDF with custom margins, print background, and footer
+    await page.pdf({
+      path: outputFilePath,
+      format: 'A4',
+      printBackground: true,
+      // margin: {
+      //   top: '20mm',
+      //   bottom: '20mm',
+      //   left: '15mm',
+      //   right: '15mm',
+      // },
+      displayHeaderFooter: true,
+      footerTemplate: `
+        <div style="font-size:10px; text-align:center; width:100%; color: #888; padding: 5px 0;">
+          <p><strong>Hotel Name</strong> | Powered by <a href="http://quasar-tech.in/" style="color:#888; text-decoration:none;">Quasar-Tech</a></p>
+        </div>
+      `,
+      headerTemplate: '<div></div>', // Empty header
+    });
+
+    console.log(`PDF generated successfully at ${outputFilePath}`);
+    await browser.close();
+
+    return { success: true, message: 'PDF generated successfully', filePath: outputFilePath };
+  } catch (error) {
+    console.error('Failed to generate PDF:', error.message);
+    return { success: false, message: 'Failed to generate PDF', error: error.message };
   }
 });

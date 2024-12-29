@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOMServer from 'react-dom/server';
 import { X, FileText, PlusCircle } from 'lucide-react';
-import { useRoomsStore } from '../../../store/roomsStore'
+import HotelBill from './HotelBill'; // Assuming HotelBill component is already created
+import { useRoomsStore } from '../../../store/roomsStore';
 
 // Payment modes from schema
 const PAYMENT_MODES = {
@@ -19,8 +21,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   const [miscCharges, setMiscCharges] = useState([]);
 
   const advance = parseFloat(formData.advanceAmount);
-
-  const orgDetails = useRoomsStore((state) => state.orgDetails)
+  const orgDetails = useRoomsStore((state) => state.orgDetails);
 
   // Fetch initial checkout calculations
   useEffect(() => {
@@ -118,7 +119,62 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       if (!result.success) {
         throw new Error(result.message || 'Checkout failed');
       }
-  
+
+      // Generate PDF
+      const billHtml = (
+        <HotelBill
+          // billingId={`BILL-${space.bookingId}`}
+          // billingDate={new Date().toLocaleDateString()}
+          // hotelDetails={orgDetails}
+          // guestDetails={{
+          //   name: formData.fullName,
+          //   phone: formData.phoneNumber,
+          //   aadhar: formData.aadharNumber,
+          //   nationality: formData.nationality,
+          // }}
+          // roomDetails={{
+          //   name: space.spaceName,
+          //   type: space.spaceType,
+          //   checkIn: formData.checkIn,
+          //   checkOut: formData.checkOut,
+          //   pricePerDay: space.basePrice,
+          //   days: checkoutData.totalDays,
+          //   totalCost: totals.roomCharges,
+          // }}
+          // services={formData.services.map((service) => ({
+          //   description: service.serviceName,
+          //   type: service.serviceType,
+          //   unitCost: service.costPerUnit,
+          //   quantity: service.units,
+          //   totalCost: service.units * service.costPerUnit,
+          // }))}
+          // miscCosts={miscCharges.map((charge) => ({
+          //   title: charge.description,
+          //   cost: parseFloat(charge.amount),
+          // }))}
+          // gstDetails={[{
+          //   type: 'GST',
+          //   percentage: orgDetails.gst,
+          //   totalCost: totals.gstAmount,
+          // }]}
+          // grandTotal={totals.grandTotal}
+          // advanceAmount={advance}
+          // amountDue={totals.grandTotal - advance}
+          // modeOfPayment={modeOfPayment}
+        />
+      );
+
+      const pdfOptions = {
+        htmlContent: ReactDOMServer.renderToString(billHtml),
+        imagePaths: ["/Users/prajjawalpandit/Downloads/blackFullLogo.png","/Users/prajjawalpandit/Downloads/blackFullLogo.png"],
+        savePath: '/Users/prajjawalpandit/Downloads',
+        fileName: `testbilling.pdf`,
+      };
+
+      const pdfResult = await window.electron.generatePdf(pdfOptions);
+      if (!pdfResult.success) throw new Error('Failed to generate PDF');
+      console.log('PDF generated successfully at:', pdfResult.filePath);
+
       // Get updated room data to reflect changes
       const roomData = await window.electron.getRoomData();
       if (roomData.success) {
@@ -342,11 +398,10 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           <button
             onClick={handleCheckout}
             disabled={isLoading}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
-              disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
           >
             <FileText size={20} />
-            {isLoading ? "Processing..." : "Complete Checkout"}
+            {isLoading ? 'Processing...' : 'Complete Checkout'}
           </button>
         </div>
       </div>
