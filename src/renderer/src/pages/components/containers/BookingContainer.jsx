@@ -30,6 +30,13 @@ const BookingContainer = ({ space, category, onClose }) => {
   // Form data state
   const [formData, setFormData] = useState(() => {
     if (hasExistingBooking) {
+      // Convert dates to ISO string format for datetime-local input
+      const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+      };
+  
       return {
         // Primary Guest
         fullName: space.bookingId.guestId?.fullName || '',
@@ -44,9 +51,9 @@ const BookingContainer = ({ space, category, onClose }) => {
         designation: space.bookingId.guestId?.designation || '',
         purposeOfVisit: space.bookingId.guestId?.purposeOfVisit || '',
         
-        // Booking details
-        checkIn: space.bookingId.checkIn || '',
-        checkOut: space.bookingId.checkOut || '',
+        // Booking details - convert dates to correct format
+        checkIn: formatDate(space.bookingId.checkIn),
+        checkOut: formatDate(space.bookingId.checkOut),
         bookingType: 'CURRENT',
         advanceAmount: space.bookingId.advanceAmount || 0,
         
@@ -206,7 +213,10 @@ const BookingContainer = ({ space, category, onClose }) => {
         space.bookingId = result.data._id;
         console.log('created:', space.bookingId);
   
-        // Email notification logic
+        
+  
+        if(!hasExistingBooking){
+          // Email notification logic
         const emailData = {
           to: orgDetails.email, // Replace with the hotel's owner email
           subject: 'Guest Check-In Notification',
@@ -308,13 +318,12 @@ const BookingContainer = ({ space, category, onClose }) => {
            .replace('{{advanceAmount}}', formData.advanceAmount || 'N/A')
            .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
         };
-  
-        const response = await window.electron.sendEmail(emailData);
+          const response = await window.electron.sendEmail(emailData);
         if (response.success) {
           console.log('Email sent successfully:', response.messageId);
         } else {
           console.error('Failed to send email:', response.error);
-        }
+        }}
   
         setCurrentStage(STAGES.SERVICES);
       } 

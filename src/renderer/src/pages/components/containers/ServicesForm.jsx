@@ -15,6 +15,8 @@ const ServicesForm = ({ formData, setFormData, space }) => {
   const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState({});  // Track loading state per service
   const [error, setError] = useState(null);
+  
+  const { setSpaces } = useRoomsStore();
 
   // Add new service
   const addService = () => {
@@ -76,12 +78,16 @@ const ServicesForm = ({ formData, setFormData, space }) => {
       }
 
       // Update the store with the new service data
-      useRoomsStore.getState().updateBookingServices(result.data.serviceIds);
+      const roomResult = await window.electron.getRoomData();
+
+      if (roomResult.success) {
+        setSpaces(roomResult.data.spaces);
+      }
 
       // Update local state with saved service
       const newServices = [...formData.services];
       newServices[index] = {
-        ...result.data.serviceIds[0], // Use first service since we're saving one at a time
+        ...result.data.serviceIds[index], // Use first service since we're saving one at a time
         isPending: false
       };
       
