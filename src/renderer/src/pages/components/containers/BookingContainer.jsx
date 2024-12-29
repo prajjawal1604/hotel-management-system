@@ -566,13 +566,7 @@ const BookingContainer = ({ space, category, onClose }) => {
             )}
             <div className="flex gap-2">
               <button
-                onClick={() => {
-                  if (hasExistingBooking) {
-                    setCurrentStage(STAGES.SERVICES);
-                  } else {
-                    handleNext();
-                  }
-                }}
+                onClick={handleNext}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 disabled={loading}
               >
@@ -584,6 +578,8 @@ const BookingContainer = ({ space, category, onClose }) => {
             </div>
           </div>
         )}
+
+        
       </div>
     </div>
   );

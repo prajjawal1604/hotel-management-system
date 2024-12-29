@@ -1832,3 +1832,22 @@ ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePat
     return { success: false, message: 'Failed to generate PDF', error: error.message };
   }
 });
+
+ipcMain.handle('get-path', (event, name) => {
+  try {
+    return app.getPath(name);
+  } catch (error) {
+    console.error('Error getting system path:', error);
+    throw new Error(`Failed to get system path: ${error.message}`);
+  }
+});
+
+// Get platform information
+ipcMain.handle('get-platform', () => {
+  try {
+    return process.platform;
+  } catch (error) {
+    console.error('Error getting platform:', error);
+    throw new Error(`Failed to get platform: ${error.message}`);
+  }
+});

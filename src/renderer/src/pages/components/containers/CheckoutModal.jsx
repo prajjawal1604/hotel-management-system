@@ -90,6 +90,24 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       grandTotal: subtotal + gstAmount
     };
   };
+  // Get desktop path based on OS
+  const getDesktopPath = async () => {
+    const homeDir = await window.electron.getPath('home');
+    const platform = await window.electron.getPlatform();
+    
+    switch (platform) {
+      case 'win32':
+        return `${homeDir}\\Desktop`;
+      case 'darwin':
+      case 'linux':
+        return `${homeDir}/Desktop`;
+      default:
+        return homeDir;
+    }
+  };
+
+  
+
 
   // Handle checkout
   const handleCheckout = async () => {
@@ -123,57 +141,71 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       // Generate PDF
       const billHtml = (
         <HotelBill
-          // billingId={`BILL-${space.bookingId}`}
-          // billingDate={new Date().toLocaleDateString()}
-          // hotelDetails={orgDetails}
-          // guestDetails={{
-          //   name: formData.fullName,
-          //   phone: formData.phoneNumber,
-          //   aadhar: formData.aadharNumber,
-          //   nationality: formData.nationality,
-          // }}
-          // roomDetails={{
-          //   name: space.spaceName,
-          //   type: space.spaceType,
-          //   checkIn: formData.checkIn,
-          //   checkOut: formData.checkOut,
-          //   pricePerDay: space.basePrice,
-          //   days: checkoutData.totalDays,
-          //   totalCost: totals.roomCharges,
-          // }}
-          // services={formData.services.map((service) => ({
-          //   description: service.serviceName,
-          //   type: service.serviceType,
-          //   unitCost: service.costPerUnit,
-          //   quantity: service.units,
-          //   totalCost: service.units * service.costPerUnit,
-          // }))}
-          // miscCosts={miscCharges.map((charge) => ({
-          //   title: charge.description,
-          //   cost: parseFloat(charge.amount),
-          // }))}
-          // gstDetails={[{
-          //   type: 'GST',
-          //   percentage: orgDetails.gst,
-          //   totalCost: totals.gstAmount,
-          // }]}
-          // grandTotal={totals.grandTotal}
-          // advanceAmount={advance}
-          // amountDue={totals.grandTotal - advance}
-          // modeOfPayment={modeOfPayment}
+          billingId={`BILL-${space.bookingId}`}
+          billingDate={new Date().toLocaleDateString()}
+          hotelDetails={orgDetails}
+          guestDetails={{
+            name: formData.fullName,
+            phone: formData.phoneNumber,
+            aadhar: formData.aadharNumber,
+            nationality: formData.nationality,
+          }}
+          roomDetails={{
+            name: space.spaceName,
+            type: space.spaceType,
+            checkIn: formData.checkIn,
+            checkOut: formData.checkOut,
+            pricePerDay: space.basePrice,
+            days: checkoutData.totalDays,
+            totalCost: totals.roomCharges,
+          }}
+          services={formData.services.map((service) => ({
+            description: service.serviceName,
+            type: service.serviceType,
+            unitCost: service.costPerUnit,
+            quantity: service.units,
+            totalCost: service.units * service.costPerUnit,
+          }))}
+          miscCosts={miscCharges.map((charge) => ({
+            title: charge.description,
+            cost: parseFloat(charge.amount),
+          }))}
+          gstDetails={[{
+            type: 'GST',
+            percentage: orgDetails.gst,
+            totalCost: totals.gstAmount,
+          }]}
+          grandTotal={totals.grandTotal}
+          advanceAmount={advance}
+          amountDue={totals.grandTotal - advance}
+          modeOfPayment={modeOfPayment}
         />
       );
-
+      const billingHtml = ReactDOMServer.renderToString(billHtml);
+      const path = await getDesktopPath();
       const pdfOptions = {
         htmlContent: ReactDOMServer.renderToString(billHtml),
-        imagePaths: ["/Users/prajjawalpandit/Downloads/blackFullLogo.png","/Users/prajjawalpandit/Downloads/blackFullLogo.png"],
-        savePath: '/Users/prajjawalpandit/Downloads',
-        fileName: `testbilling.pdf`,
+        imagePaths: [],
+        savePath: `${path}`,
+        fileName: `${space.spaceName}-${result.data._id}.pdf`,
       };
 
       const pdfResult = await window.electron.generatePdf(pdfOptions);
       if (!pdfResult.success) throw new Error('Failed to generate PDF');
       console.log('PDF generated successfully at:', pdfResult.filePath);
+
+      const emailData = {
+        to: orgDetails.email, // Replace with the hotel's owner email
+        subject: 'Checkout Details',  
+        html: billingHtml,
+      };
+
+      const response = await window.electron.sendEmail(emailData);
+      if (response.success) {
+        console.log('Email sent successfully:', response.messageId);
+      } else {
+        console.error('Failed to send email:', response.error);
+      }
 
       // Get updated room data to reflect changes
       const roomData = await window.electron.getRoomData();

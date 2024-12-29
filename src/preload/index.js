@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('electron', {
   sendEmail: async (emailOptions) => await ipcRenderer.invoke('send-email', emailOptions),
 
   // PDF Generation
-  generatePdf: async (pdfOptions) => await ipcRenderer.invoke('generate-pdf', pdfOptions)
+  generatePdf: async (pdfOptions) => await ipcRenderer.invoke('generate-pdf', pdfOptions),
+
+  getPath: (pathName) => ipcRenderer.invoke('get-path', pathName),
+    getPlatform: () => ipcRenderer.invoke('get-platform')
+
 
 })
