@@ -26,6 +26,9 @@ const HotelBill = ({
   advanceAmount = 0,
   amountDue = 0,
   modeOfPayment = "N/A",
+  gstID = "N/A",
+  orgName = "N/A",
+  orgEmail = "N/A",
 }) => {
   const renderTableHeader = (headers) => (
     <thead>
@@ -105,10 +108,10 @@ const HotelBill = ({
 
       {/* Hotel Details */}
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
-        <h1 style={{ margin: 0, fontSize: "24px", color: "#007bff" }}>Maa Mangala Residency</h1>
+        <h1 style={{ margin: 0, fontSize: "24px", color: "#007bff" }}>{orgName}</h1>
         <p>1234 Residency Lane, Bhubaneswar, Odisha, India</p>
-        <p>Email: info@maamangalaresidency.com | Phone: +91 98765 43210</p>
-        <p>GST Number: 27XXXXXXXXXXZ5A</p>
+        <p>Email: {orgEmail} | Phone: +91 98765 43210</p>
+        <p>GST Number: {gstID}</p>
       </div>
 
       {/* Guest Details */}
@@ -173,7 +176,7 @@ const HotelBill = ({
                   {renderTableCell(service.serviceType)}
                   {renderTableCell(`₹${service.costPerUnit}`)}
                   {renderTableCell(service.units)}
-                  {renderTableCell(`₹${service.totalServiceCost}`)}
+                  {renderTableCell(`₹${service.costPerUnit * service.units}`)}
                 </tr>
               ))
             ) : (
@@ -200,8 +203,8 @@ const HotelBill = ({
             {misc.length > 0 ? (
               misc.map((item, index) => (
                 <tr key={index}>
-                  {renderTableCell(item.miscTitle)}
-                  {renderTableCell(`₹${item.miscCost}`)}
+                  {renderTableCell(item.description)}
+                  {renderTableCell(`₹${item.amount}`)}
                 </tr>
               ))
             ) : (

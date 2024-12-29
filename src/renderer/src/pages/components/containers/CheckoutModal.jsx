@@ -139,46 +139,42 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       }
 
       // Generate PDF
+      const checkInDate = new Date(formData.checkIn);
+      const checkOutDate = new Date(formData.checkOut);
+      const timeDiff = Math.abs(checkOutDate - checkInDate);
+      const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
       const billHtml = (
         <HotelBill
-          billingId={`BILL-${space.bookingId}`}
+          billingId={result.data._id}
           billingDate={new Date().toLocaleDateString()}
           hotelDetails={orgDetails}
-          guestDetails={{
-            name: formData.fullName,
-            phone: formData.phoneNumber,
-            aadhar: formData.aadharNumber,
-            nationality: formData.nationality,
-          }}
-          roomDetails={{
-            name: space.spaceName,
-            type: space.spaceType,
-            checkIn: formData.checkIn,
-            checkOut: formData.checkOut,
-            pricePerDay: space.basePrice,
-            days: checkoutData.totalDays,
-            totalCost: totals.roomCharges,
-          }}
-          services={formData.services.map((service) => ({
-            description: service.serviceName,
-            type: service.serviceType,
-            unitCost: service.costPerUnit,
-            quantity: service.units,
-            totalCost: service.units * service.costPerUnit,
-          }))}
-          miscCosts={miscCharges.map((charge) => ({
-            title: charge.description,
-            cost: parseFloat(charge.amount),
-          }))}
-          gstDetails={[{
-            type: 'GST',
-            percentage: orgDetails.gst,
-            totalCost: totals.gstAmount,
-          }]}
+          guestName={formData.fullName}
+          guestPhone={formData.phoneNumber}
+          guestAadhar={formData.aadharNumber}
+          guestNationality={formData.nationality}
+          roomName={space.spaceName}
+          roomType={space.spaceType}
+          checkIn={checkInDate.toLocaleString()}
+          checkOut={checkOutDate.toLocaleString()}
+          basePrice={space.basePrice}
+          days={days}
+          roomCost={totals.roomCharges}
+          services={formData.services}
+          servicesSubtotal={totals.serviceCharges}
+          misc={miscCharges}
+          miscSubtotal={totals.miscTotal}
+          gstPercentage={orgDetails.gst}
+          sgstCost={totals.gstAmount / 2}
+          cgstCost={totals.gstAmount / 2}
+          gstTotal={totals.gstAmount}
           grandTotal={totals.grandTotal}
           advanceAmount={advance}
           amountDue={totals.grandTotal - advance}
           modeOfPayment={modeOfPayment}
+          gstID={orgDetails.gst}
+          orgName={orgDetails.orgName}
+          orgEmail={orgDetails.email}
         />
       );
       const billingHtml = ReactDOMServer.renderToString(billHtml);
