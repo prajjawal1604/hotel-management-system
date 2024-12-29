@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('electron', {
   assignRoom: (bookingId, spaceId) => ipcRenderer.invoke('assignRoom', { bookingId, spaceId }),
 
   // Email
-  sendEmail: async (emailOptions) => await ipcRenderer.invoke('send-email', emailOptions)
+  sendEmail: async (emailOptions) => await ipcRenderer.invoke('send-email', emailOptions),
+
+  // PDF Generation
+  generatePdf: async (pdfOptions) => await ipcRenderer.invoke('generate-pdf', pdfOptions)
 
 })
