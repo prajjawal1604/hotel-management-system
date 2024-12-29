@@ -1741,7 +1741,7 @@ ipcMain.handle('send-email', async (_, { to, subject, text, html, attachments })
 });
 
 // PDF Generation Handler
-ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePath, fileName }) => {
+ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePath, fileName, orgName = "Maa Mangala Residency" }) => {
   try {
     console.log('Preparing to generate PDF...');
 
@@ -1816,8 +1816,8 @@ ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePat
       // },
       displayHeaderFooter: true,
       footerTemplate: `
-        <div style="font-size:10px; text-align:center; width:100%; color: #888; padding: 5px 0;">
-          <p><strong>Hotel Name</strong> | Powered by <a href="http://quasar-tech.in/" style="color:#888; text-decoration:none;">Quasar-Tech</a></p>
+        <div style="font-size:10px; text-align:center; width:100%; color: #888; padding: 5px 0;margin-top: 20px;">
+          <p><strong>${orgName}</strong> | Powered by <a href="http://quasar-tech.in/" style="color:#888; text-decoration:none;">Quasar-Tech</a></p>
         </div>
       `,
       headerTemplate: '<div></div>', // Empty header
