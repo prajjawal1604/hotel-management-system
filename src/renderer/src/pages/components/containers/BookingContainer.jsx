@@ -12,6 +12,10 @@ const STAGES = {
 };
 
 const BookingContainer = ({ space, category, onClose }) => {
+
+  // Get organization details
+  const orgDetails = useRoomsStore((state) => state.orgDetails);
+
   // Check if there's an existing booking
   const hasExistingBooking = space.currentStatus === 'OCCUPIED' && space.bookingId;
 
@@ -204,7 +208,7 @@ const BookingContainer = ({ space, category, onClose }) => {
   
         // Email notification logic
         const emailData = {
-          to: 'panditprajjawal@gmail.com', // Replace with the hotel's owner email
+          to: orgDetails.email, // Replace with the hotel's owner email
           subject: 'Guest Check-In Notification',
           html: `
             <!DOCTYPE html>
@@ -355,6 +359,116 @@ const BookingContainer = ({ space, category, onClose }) => {
   
       // Close the modal
       onClose();
+
+      // Email notification logic
+      const emailData = {
+        to: orgDetails.email, // Replace with the hotel's owner email
+        subject: 'Booking Cancellation Notification',
+        html: `
+          <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  line-height: 1.6;
+                  color: #333;
+                }
+                .email-container {
+                  max-width: 600px;
+                  margin: 0 auto;
+                  padding: 20px;
+                  border: 1px solid #ddd;
+                  border-radius: 8px;
+                  background-color: #f9f9f9;
+                }
+                .header {
+                  text-align: center;
+                  margin-bottom: 20px;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 24px;
+                  color:rgb(255, 0, 0);
+                }
+                .details {
+                  margin-bottom: 20px;
+                }
+                .details h2 {
+                  margin: 0 0 10px;
+                  font-size: 18px;
+                  color: #333;
+                }
+                .details p {
+                  margin: 0;
+                }
+                .footer {
+                  text-align: center;
+                  margin-top: 20px;
+                  font-size: 12px;
+                  color: #999;
+                }
+                .footer a {
+                  color: #007bff;
+                  text-decoration: none;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="email-container">
+                <div class="header">
+                  <h1>Booking Cancellation!!!</h1>
+                </div>
+
+                <div class="details">
+                  <h2>Guest Details</h2>
+                  <p><strong>Name:</strong> {{guestName}}</p>
+                  <p><strong>Phone Number:</strong> {{guestPhone}}</p>
+                  <p><strong>Gender:</strong> {{guestGender}}</p>
+                  <p><strong>Nationality:</strong> {{guestNationality}}</p>
+                  <p><strong>Address:</strong> {{guestAddress}}</p>
+                  <p><strong>Purpose of Visit:</strong> {{guestPurpose}}</p>
+                </div>
+
+                <div class="details">
+                  <h2>Booking Details</h2>
+                  <p><strong>Room Number:</strong> {{roomNumber}}</p>
+                  <p><strong>Check-In:</strong> {{checkIn}}</p>
+                  <p><strong>Check-Out:</strong> {{checkOut}}</p>
+                  <p><strong>Booking Type:</strong> {{bookingType}}</p>
+                  <p><strong>Advance Amount:</strong> {{advanceAmount}}</p>
+                </div>
+
+                <div class="footer">
+                  <p>Thank you for using our hotel management system.</p>
+                  <p>Need help? Contact us at <a href="mailto:{{hotelEmail}}">quasar-help</a>.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+
+        `.replace('{{guestName}}', formData.fullName)
+          .replace('{{guestPhone}}', formData.phoneNumber)
+          .replace('{{guestGender}}', formData.gender)
+          .replace('{{guestNationality}}', formData.nationality || 'N/A')
+          .replace('{{guestAddress}}', formData.address || 'N/A')
+          .replace('{{guestPurpose}}', formData.purposeOfVisit || 'N/A')
+          .replace('{{roomNumber}}', space.spaceName)
+          .replace('{{checkIn}}', formData.checkIn)
+          .replace('{{checkOut}}', formData.checkOut)
+          .replace('{{bookingType}}', formData.bookingType)
+          .replace('{{advanceAmount}}', formData.advanceAmount || 'N/A')
+          .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
+      };
+
+      const response = await window.electron.sendEmail(emailData);
+      if (response.success) {
+        console.log('Email sent successfully:', response.messageId);
+      } else {
+        console.error('Failed to send email:', response.error);
+      }
   
     } catch (err) {
       setError(err.message);
