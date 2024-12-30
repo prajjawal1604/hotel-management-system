@@ -47,7 +47,13 @@ contextBridge.exposeInMainWorld('electron', {
   generatePdf: async (pdfOptions) => await ipcRenderer.invoke('generate-pdf', pdfOptions),
 
   getPath: (pathName) => ipcRenderer.invoke('get-path', pathName),
-    getPlatform: () => ipcRenderer.invoke('get-platform')
+    getPlatform: () => ipcRenderer.invoke('get-platform'),
+
+    // Add this to your existing electron object in preload.js
+deleteAdvanceBooking: (bookingId) => ipcRenderer.invoke('deleteAdvanceBooking', bookingId),
+uploadDocument: (data) => ipcRenderer.invoke('uploadDocument', data),
+cleanupDocuments: (bookingId) => ipcRenderer.invoke('cleanupDocuments', bookingId),
+storeDocument: (data) => ipcRenderer.invoke('storeDocument', data)
 
 
 })

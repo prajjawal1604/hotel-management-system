@@ -24,7 +24,8 @@ class Models {
         AdditionalGuest: connection.model('additional_guests', schemas.additionalGuest),
         Service: connection.model('services', schemas.service),
         Booking: connection.model('bookings', schemas.booking),
-        Invoice: connection.model('invoices', schemas.invoice)
+        Invoice: connection.model('invoices', schemas.invoice),
+        Document: connection.model('documents', schemas.document)
     }
     console.log('Org models initialized')
   }

@@ -1743,7 +1743,7 @@ ipcMain.handle('send-email', async (_, { to, subject, text, html, attachments })
 // PDF Generation Handler
 ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePath, fileName, orgName = "Maa Mangala Residency" }) => {
   try {
-    console.log('Preparing to generate PDF...');
+    console.log('Preparing to generate PDF...', imagePaths);
 
     // Ensure savePath and fileName are provided
     if (!savePath || !fileName) {
@@ -1849,5 +1849,163 @@ ipcMain.handle('get-platform', () => {
   } catch (error) {
     console.error('Error getting platform:', error);
     throw new Error(`Failed to get platform: ${error.message}`);
+  }
+});
+
+// Add this to your main.js
+ipcMain.handle('deleteAdvanceBooking', async (_, bookingId) => {
+  try {
+    console.log('Deleting advance booking:', bookingId);
+    const { Booking, PrimaryGuest, AdditionalGuest } = models.getOrgModels();
+
+    // Find the booking first
+    const booking = await Booking.findById(bookingId)
+      .populate({path:'guestId', model: 'primary_guests'})
+      .populate({path: 'additionalGuestIds', model: 'additional_guests'})
+      .lean();
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    if (booking.bookingType !== 'ADVANCE') {
+      throw new Error('Only advance bookings can be deleted');
+    }
+
+    // Delete associated additional guests
+    if (booking.additionalGuestIds?.length > 0) {
+      await AdditionalGuest.deleteMany({
+        _id: { $in: booking.additionalGuestIds.map(g => g._id) }
+      });
+    }
+
+    // Delete primary guest
+    if (booking.guestId) {
+      await PrimaryGuest.findByIdAndDelete(booking.guestId._id);
+    }
+
+    // Delete the booking
+    await Booking.findByIdAndDelete(bookingId);
+
+    return {
+      success: true,
+      message: 'Advance booking deleted successfully'
+    };
+
+  } catch (error) {
+    console.error('Delete advance booking error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to delete advance booking'
+    };
+  }
+});
+
+ipcMain.handle('uploadDocument', async (_, { file, guestType }) => {
+  try {
+    const { Document } = models.getOrgModels();
+    
+    // Generate a unique filename
+    const fileName = `${Date.now()}-${file.name}`;
+    
+    // Get documents directory path
+    const documentsPath = app.getPath('documents');
+    const uploadDir = path.join(documentsPath, 'HotelDocs', guestType.toLowerCase());
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    // Save file
+    const filePath = path.join(uploadDir, fileName);
+    await fs.promises.writeFile(filePath, Buffer.from(file.buffer));
+    
+    // Create document record
+    const doc = await Document.create({
+      filePath,
+      fileType: path.extname(file.name),
+      originalName: file.name,
+      uploadDate: new Date(),
+      guestType
+    });
+
+    return {
+      success: true,
+      data: {
+        _id: doc._id,
+        filePath: doc.filePath,
+        originalName: doc.originalName
+      }
+    };
+  } catch (error) {
+    console.error('Document upload error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('cleanupDocuments', async (_, bookingId) => {
+  try {
+    const { Document } = models.getOrgModels();
+    
+    // Find and delete all documents related to the booking
+    await Document.deleteMany({ 
+      guestId: { $in: await getBookingGuestIds(bookingId) }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Document cleanup error:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Helper function to get all guest IDs from a booking
+async function getBookingGuestIds(bookingId) {
+  const { Booking } = models.getOrgModels();
+  const booking = await Booking.findById(bookingId)
+    .populate({path:'guestId',model:'primary_guests'})
+    .populate({path:'additionalGuestIds',model:'additional_guests'});
+
+  return [
+    booking.guestId._id,
+    ...booking.additionalGuestIds.map(guest => guest._id)
+  ];
+};
+
+ipcMain.handle('storeDocument', async (_, { originalPath, guestType }) => {
+  try {
+    const { Document } = models.getOrgModels();
+    
+    // Get app data path for secure storage
+    const appDataPath = app.getPath('userData');
+    const docsPath = path.join(appDataPath, 'documents');
+    
+    // Create directory if doesn't exist
+    if (!fs.existsSync(docsPath)) {
+      fs.mkdirSync(docsPath, { recursive: true });
+    }
+    
+    // Generate new filename and path
+    const fileName = `${Date.now()}-${path.basename(originalPath)}`;
+    const newPath = path.join(docsPath, fileName);
+    
+    // Copy file to secure location
+    await fs.promises.copyFile(originalPath, newPath);
+    
+    // Store path in database
+    const doc = await Document.create({
+      filePath: newPath,
+      originalName: path.basename(originalPath),
+      guestType
+    });
+
+    return {
+      success: true,
+      data: { _id: doc._id, filePath: newPath, originalName: doc.originalName }
+    };
+  } catch (error) {
+    console.error('Document store error:', error);
+    return { success: false, message: error.message };
   }
 });

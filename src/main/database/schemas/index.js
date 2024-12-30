@@ -84,6 +84,16 @@ const bookingSchema = new mongoose.Schema({
     status: { type: String, enum: ["ONGOING", "COMPLETED", "CANCELLED"], default: "ONGOING" }
 });
 
+const documentSchema = new mongoose.Schema({
+    filePath: { type: String },
+    fileType: { type: String },
+    originalName: {type: String},
+    uploadDate: { type: Date, default: Date.now },
+    guestType: { type: String, enum: ["PRIMARY", "ADDITIONAL"] },
+    guestId: { type: mongoose.Schema.Types.ObjectId, refPath: 'guestType' }
+});
+
+
 const invoiceSchema = new mongoose.Schema({
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true },
     totalAmount: Number,
@@ -100,5 +110,6 @@ export default {
     additionalGuest: additionalGuestSchema,
     service: serviceSchema,
     booking: bookingSchema,
-    invoice: invoiceSchema
+    invoice: invoiceSchema,
+    document: documentSchema
 };

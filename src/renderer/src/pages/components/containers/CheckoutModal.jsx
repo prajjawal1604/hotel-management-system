@@ -106,7 +106,6 @@ const CheckoutModal = ({ formData, space, onClose }) => {
     }
   };
 
-  // Handle checkout
   const handleCheckout = async () => {
     try {
       setIsLoading(true);
@@ -115,11 +114,17 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       const totals = calculateTotals();
       const totalAmount = totals.grandTotal;
   
+      // Get check-in and check-out dates for bill
+      const checkInDate = new Date(formData.checkIn);
+      const checkOutDate = new Date(checkoutDateTime);
+      const timeDiff = Math.abs(checkOutDate - checkInDate);
+      const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+  
       const checkoutData = {
         spaceId: space._id,
         bookingId: space.bookingId,
         modeOfPayment,
-        checkOut: new Date(checkoutDateTime),
+        checkOut: checkOutDate,
         charges: {
           roomCharges: totals.roomCharges,
           serviceCharges: totals.serviceCharges,
@@ -135,13 +140,22 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       if (!result.success) {
         throw new Error(result.message || 'Checkout failed');
       }
+  
+      // Get all document paths
+      const documentPaths = [
+        ...(formData.documents?.map(doc => doc.filePath) || []),
+        ...formData.additionalGuests.flatMap(guest => 
+          guest.documents?.map(doc => doc.filePath) || []
+        )
+      ];
 
-      // Generate PDF
-      const checkInDate = new Date(formData.checkIn);
-      const checkOutDate = new Date(checkoutDateTime);
-      const timeDiff = Math.abs(checkOutDate - checkInDate);
-      const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
+    console.log('Document paths before PDF:', documentPaths);
+  
+      // Generate PDF with document paths
+      const path = await getDesktopPath();
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+  
       const billHtml = (
         <HotelBill
           billingId={result.data._id}
@@ -178,37 +192,34 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           orgEmail={orgDetails.email}
         />
       );
-
+  
       const billingHtml = ReactDOMServer.renderToString(billHtml);
-      const path = await getDesktopPath();
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-
+  
       const pdfOptions = {
         htmlContent: ReactDOMServer.renderToString(billHtml),
-        imagePaths: [],
+        imagePaths: documentPaths,
         savePath: `${path}/${orgDetails.orgName}/${currentYear}/${currentMonth}`,
         fileName: `${space.spaceName}-${result.data._id}.pdf`,
       };
-
+  
       const pdfResult = await window.electron.generatePdf(pdfOptions);
       if (!pdfResult.success) throw new Error('Failed to generate PDF');
-      console.log('PDF generated successfully at:', pdfResult.filePath);
-
+  
+      // After PDF generation, clean up documents
+      await window.electron.cleanupDocuments(space.bookingId);
+  
       const emailData = {
         to: orgDetails.email,
         subject: 'Checkout Details',  
         html: billingHtml,
       };
-
+  
       const response = await window.electron.sendEmail(emailData);
-      if (response.success) {
-        console.log('Email sent successfully:', response.messageId);
-      } else {
+      if (!response.success) {
         console.error('Failed to send email:', response.error);
       }
-
-      // Get updated room data to reflect changes
+  
+      // Get updated room data
       const roomData = await window.electron.getRoomData();
       if (roomData.success) {
         useRoomsStore.getState().setSpaces(roomData.data.spaces);

@@ -200,7 +200,8 @@ export const useRoomsStore = create((set) => ({
 
   setBookingError: (error) => set({
     bookingError: error
-  })
+  }),
+
 }));
 
 export default useRoomsStore;
