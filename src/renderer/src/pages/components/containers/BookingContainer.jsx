@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import BookingForm from './BookingForm';
 import ServicesForm from './ServicesForm';
 import CheckoutModal from './CheckoutModal';
-import { useRoomsStore } from '../../../store/roomsStore';
+import { useRoomsStore } from '../../../store/roomsStore.js';
 
 const STAGES = {
   BOOKING: 'BOOKING',

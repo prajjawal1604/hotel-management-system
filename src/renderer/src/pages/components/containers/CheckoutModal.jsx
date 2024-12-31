@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { X, FileText, PlusCircle } from 'lucide-react';
+import { X, FileText, PlusCircle, Edit } from 'lucide-react';
 import HotelBill from './HotelBill';
 import { useRoomsStore } from '../../../store/roomsStore';
 
@@ -19,52 +19,109 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   const [modeOfPayment, setModeOfPayment] = useState(PAYMENT_MODES.CASH);
   const [miscCharges, setMiscCharges] = useState([]);
   const [checkoutDateTime, setCheckoutDateTime] = useState(new Date().toISOString().slice(0, 16));
+  const [isEditingCheckout, setIsEditingCheckout] = useState(false);
+
+  // Add this after the checkoutDateTime state
+useEffect(() => {
+  const checkInDate = new Date(formData.checkIn);
+  const checkOutDate = new Date(checkoutDateTime);
+  
+  if (checkOutDate < checkInDate) {
+    setCheckoutDateTime(formData.checkIn);
+    setError("Checkout date cannot be earlier than check-in date");
+  }
+}, [checkoutDateTime, formData.checkIn]);
 
   const advance = parseFloat(formData.advanceAmount);
   const orgDetails = useRoomsStore((state) => state.orgDetails);
 
-  // Fetch initial checkout calculations
-  useEffect(() => {
-    const calculateCheckout = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // Add this helper function
+const calculateDays = (checkIn, checkOut) => {
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+  
+  // Helper function to set time to 8 AM for comparison
+  const setTo8AM = (date) => {
+    const newDate = new Date(date);
+    newDate.setHours(8, 0, 0, 0);
+    return newDate;
+  };
 
-        const result = await window.electron.calculateCheckout({
-          spaceId: space._id,
-          checkIn: formData.checkIn,
-          checkOut: new Date(checkoutDateTime),
-          services: formData.services
-        });
+  // Get the next 8 AM after check-in
+  const firstDay8AM = setTo8AM(checkInDate);
+  if (checkInDate > firstDay8AM) {
+    firstDay8AM.setDate(firstDay8AM.getDate());
+  }
 
-        if (!result.success) {
-          throw new Error(result.message || 'Failed to calculate checkout details');
-        }
+  // Get the 8 AM of checkout day
+  const lastDay8AM = setTo8AM(checkOutDate);
 
-        setCheckoutData(result.data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setIsLoading(false);
+  // Calculate base days
+  let days = 1; // Start with 1 for the first day
+
+  // If checkout is after 8 AM of any day, add another day
+  if (checkOutDate >= lastDay8AM) {
+    days += 1;
+  }
+
+  // Add any full days in between
+  if (lastDay8AM > firstDay8AM) {
+    const millisPerDay = 24 * 60 * 60 * 1000;
+    days += Math.floor((lastDay8AM - firstDay8AM) / millisPerDay);
+  }
+
+  return days;
+};
+
+// Update the useEffect that calculates checkout
+useEffect(() => {
+  const calculateCheckout = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const days = calculateDays(formData.checkIn, checkoutDateTime);
+      
+      const result = await window.electron.calculateCheckout({
+        spaceId: space._id,
+        checkIn: formData.checkIn,
+        checkOut: new Date(checkoutDateTime),
+        services: formData.services,
+        days: days // Pass the calculated days
+      });
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to calculate checkout details');
       }
-    };
 
-    calculateCheckout();
-  }, [space._id, formData.checkIn, checkoutDateTime, formData.services]);
+      setCheckoutData({
+        ...result.data,
+        roomCharges: space.basePrice * days // Update room charges based on our calculation
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  calculateCheckout();
+}, [space._id, formData.checkIn, checkoutDateTime, formData.services]);
 
   // Handle misc charges
   const addMiscCharge = () => {
     setMiscCharges([...miscCharges, { description: '', amount: '' }]);
   };
 
-  const updateMiscCharge = (index, field, value) => {
-    const updatedCharges = [...miscCharges];
-    updatedCharges[index] = {
-      ...updatedCharges[index],
-      [field]: field === 'amount' ? value.replace(/[^\d.]/g, '') : value
-    };
-    setMiscCharges(updatedCharges);
+  // Update the updateMiscCharge function
+const updateMiscCharge = (index, field, value) => {
+  const updatedCharges = [...miscCharges];
+  updatedCharges[index] = {
+    ...updatedCharges[index],
+    [field]: field === 'amount' ? value.replace(/[^\d.-]/g, '') : value // Changed regex to allow negative sign
   };
+  setMiscCharges(updatedCharges);
+};
 
   const removeMiscCharge = (index) => {
     setMiscCharges(miscCharges.filter((_, i) => i !== index));
@@ -250,6 +307,23 @@ const CheckoutModal = ({ formData, space, onClose }) => {
 
   const totals = calculateTotals();
 
+  const formatDisplayDateTime = (date) => {
+    const d = new Date(date);
+    return d.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).replace(',', '');
+  };
+  
+  const formatInputDateTime = (date) => {
+    const d = new Date(date);
+    return d.toISOString().slice(0, 16); // Keep the input format as is for the input element
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
@@ -267,30 +341,48 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           </div>
         )}
 
+        
+
         {/* Guest Details Summary */}
         <div className="mt-6 bg-gray-50 rounded-lg p-4">
-          <h3 className="text-lg font-semibold mb-2">Guest Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p><span className="font-medium">Name:</span> {formData.fullName}</p>
-              <p><span className="font-medium">Phone:</span> {formData.phoneNumber}</p>
-              <p><span className="font-medium">Check-in:</span> {new Date(formData.checkIn).toLocaleString()}</p>
-            </div>
-            <div>
-              <p><span className="font-medium">Total Guests:</span> {1 + formData.additionalGuests.length}</p>
-              <p><span className="font-medium">Room Type:</span> {space.spaceType}</p>
-              <div className="flex items-center gap-2">
-                <span className="font-medium">Check-out:</span>
-                <input
-                  type="datetime-local"
-                  value={checkoutDateTime}
-                  onChange={(e) => setCheckoutDateTime(e.target.value)}
-                  className="border rounded-md px-2 py-1"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+  <h3 className="text-lg font-semibold mb-2">Guest Details</h3>
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <p><span className="font-medium">Name:</span> {formData.fullName}</p>
+      <p><span className="font-medium">Phone:</span> {formData.phoneNumber}</p>
+      <p><span className="font-medium">Check-in:</span> {formatDisplayDateTime(formData.checkIn)}</p>
+    </div>
+    <div>
+      <p><span className="font-medium">Total Guests:</span> {1 + formData.additionalGuests.length}</p>
+      <p><span className="font-medium">Room Type:</span> {space.spaceType}</p>
+      <div className="flex items-center gap-2">
+  <span className="font-medium">Check-out:</span>
+  <div className="flex items-center gap-2">
+    {isEditingCheckout ? (
+      <input
+        type="datetime-local"
+        value={checkoutDateTime}
+        onChange={(e) => setCheckoutDateTime(e.target.value)}
+        className="border rounded-md px-2 py-1"
+        onBlur={() => setIsEditingCheckout(false)}
+        autoFocus
+      />
+    ) : (
+      <>
+        <span>{formatDisplayDateTime(checkoutDateTime)}</span>
+        <button 
+          onClick={() => setIsEditingCheckout(true)}
+          className="text-gray-400 hover:text-gray-600"
+        >
+          <Edit size={16} />
+        </button>
+      </>
+    )}
+  </div>
+</div>
+    </div>
+  </div>
+</div>
 
         {/* Charges Breakdown */}
         <div className="mt-6">
@@ -298,22 +390,19 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           <div className="space-y-4">
             {/* Room Charges */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex justify-between items-center">
-                <p className="font-medium">Room Charges</p>
-                <p className="text-gray-600">₹{totals.roomCharges.toFixed(2)}</p>
-              </div>
-              {(() => {
-                const checkInDate = new Date(formData.checkIn);
-                const checkOutDate = new Date(checkoutDateTime);
-                const timeDiff = Math.abs(checkOutDate - checkInDate);
-                const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-                return (
-                  <p className="text-sm text-gray-500 mt-1">
-                    {days} days @ ₹{space.basePrice}/day
-                  </p>
-                );
-              })()}
-            </div>
+  <div className="flex justify-between items-center">
+    <p className="font-medium">Room Charges</p>
+    <p className="text-gray-600">₹{totals.roomCharges.toFixed(2)}</p>
+  </div>
+  {(() => {
+    const days = calculateDays(formData.checkIn, checkoutDateTime);
+    return (
+      <p className="text-sm text-gray-500 mt-1">
+        {days} days @ ₹{space.basePrice}/day (8AM to 8AM policy)
+      </p>
+    );
+  })()}
+</div>
 
             {/* Service Charges */}
             {formData.services.length > 0 && (

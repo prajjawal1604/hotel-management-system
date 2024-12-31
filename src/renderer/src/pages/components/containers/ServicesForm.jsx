@@ -10,45 +10,58 @@ const SERVICE_TYPES = {
 };
 
 const ServicesForm = ({ formData, setFormData, space }) => {
-  // Track which services are collapsed
-  const [collapsedServices, setCollapsedServices] = useState({});
+  const [collapsedServices, setCollapsedServices] = useState(() => {
+    return formData.services.reduce((acc, service, index) => {
+      acc[index] = !service.isPending;
+      return acc;
+    }, {});
+  });
   const [validationErrors, setValidationErrors] = useState({});
-  const [loading, setLoading] = useState({});  // Track loading state per service
+  const [loading, setLoading] = useState({});
   const [error, setError] = useState(null);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
   
   const { setSpaces } = useRoomsStore();
 
-  // Add new service
+  const formatDateTime = (dateTime) => {
+    const date = new Date(dateTime);
+    return date.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).replace(',', '');
+  };
+
   const addService = () => {
+    const now = new Date();
+    const dateString = now.toISOString().slice(0, 16);
+  
     const newService = {
       serviceName: '',
       serviceType: SERVICE_TYPES.FOOD,
       units: 1,
       costPerUnit: '',
       remarks: '',
-      dateTime: new Date().toISOString(),
-      isPending: true  // Track if service needs to be saved
+      dateTime: dateString,
+      isPending: true,
+      _tempId: Math.random()
     };
     
     setFormData(prev => ({
       ...prev,
-      services: [
-        ...prev.services,
-        newService
-      ]
+      services: [newService, ...prev.services]
     }));
-    
-    // Update the store with the new service data
-    useRoomsStore.getState().addBookingService(newService);
 
-    // Expand the newly added service
-    setCollapsedServices(prev => ({
-      ...prev,
-      [formData.services.length]: false
-    }));
+    const newCollapsed = {};
+    formData.services.forEach((_, index) => {
+      newCollapsed[index + 1] = true;
+    });
+    newCollapsed[0] = false;
+    setCollapsedServices(newCollapsed);
   };
-
-  // Save service to database
   const saveService = async (index) => {
     try {
       setLoading(prev => ({ ...prev, [index]: true }));
@@ -56,11 +69,11 @@ const ServicesForm = ({ formData, setFormData, space }) => {
 
       const service = formData.services[index];
 
-      // Validate service
       if (!service.serviceName || !service.costPerUnit || !service.units) {
         throw new Error('Please fill all required fields');
       }
 
+      // Use the original dateTime string without conversion
       const result = await window.electron.updateBookingServices({
         bookingId: space.bookingId,
         services: [{
@@ -69,7 +82,7 @@ const ServicesForm = ({ formData, setFormData, space }) => {
           units: service.units,
           costPerUnit: service.costPerUnit,
           remarks: service.remarks,
-          dateTime: service.dateTime
+          dateTime: service.dateTime  // Send original datetime string
         }]
       });
 
@@ -77,23 +90,28 @@ const ServicesForm = ({ formData, setFormData, space }) => {
         throw new Error(result.message || 'Failed to save service');
       }
 
-      // Update the store with the new service data
       const roomResult = await window.electron.getRoomData();
-
       if (roomResult.success) {
         setSpaces(roomResult.data.spaces);
       }
 
-      // Update local state with saved service
-      const newServices = [...formData.services];
-      newServices[index] = {
-        ...result.data.serviceIds[index], // Use first service since we're saving one at a time
-        isPending: false
-      };
-      
+      // Keep the datetime in its original format when updating state
+      const newServices = formData.services.map((s, i) => 
+        i === index ? {
+          ...result.data.serviceIds[0],
+          isPending: false,
+          dateTime: result.data.serviceIds[0].dateTime // Keep original format from backend
+        } : s
+      );
+
       setFormData(prev => ({
         ...prev,
         services: newServices
+      }));
+
+      setCollapsedServices(prev => ({
+        ...prev,
+        [index]: true
       }));
 
     } catch (error) {
@@ -107,13 +125,11 @@ const ServicesForm = ({ formData, setFormData, space }) => {
     }
   };
 
-  // Remove service
   const removeService = async (index) => {
     try {
       const service = formData.services[index];
       setLoading(prev => ({ ...prev, [index]: true }));
       
-      // If service was saved to DB, delete it
       if (service._id) {
         const result = await window.electron.deleteBookingService({
           bookingId: space.bookingId,
@@ -123,20 +139,27 @@ const ServicesForm = ({ formData, setFormData, space }) => {
         if (!result.success) {
           throw new Error(result.message || 'Failed to delete service');
         }
-
-        // Update store to reflect deletion
-        // useRoomsStore.getState().removeBookingService(service._id);
       }
 
-      // Remove from local state
+      const roomResult = await window.electron.getRoomData();
+      if (roomResult.success) {
+        setSpaces(roomResult.data.spaces);
+      }
+
       setFormData(prev => ({
         ...prev,
         services: prev.services.filter((_, i) => i !== index)
       }));
 
-      // Remove from collapsed state
-      const newCollapsed = { ...collapsedServices };
-      delete newCollapsed[index];
+      const newCollapsed = {};
+      Object.entries(collapsedServices).forEach(([key, value]) => {
+        const keyNum = parseInt(key);
+        if (keyNum < index) {
+          newCollapsed[keyNum] = value;
+        } else if (keyNum > index) {
+          newCollapsed[keyNum - 1] = value;
+        }
+      });
       setCollapsedServices(newCollapsed);
 
     } catch (error) {
@@ -146,14 +169,13 @@ const ServicesForm = ({ formData, setFormData, space }) => {
     }
   };
 
-  // Update service locally
   const updateService = (index, field, value) => {
     const newServices = [...formData.services];
     newServices[index] = {
       ...newServices[index],
       [field]: field === 'units' || field === 'costPerUnit' ? 
         Number(value) || 0 : value,
-      isPending: true  // Mark as needing save
+      isPending: true
     };
     
     setFormData(prev => ({
@@ -168,7 +190,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
     }
   };
 
-  // Toggle service collapse
   const toggleServiceCollapse = (index) => {
     setCollapsedServices(prev => ({
       ...prev,
@@ -176,7 +197,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
     }));
   };
 
-  // Calculate totals
   const calculateServiceTotal = (service) => {
     return (service.units || 0) * (service.costPerUnit || 0);
   };
@@ -186,7 +206,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
       total + calculateServiceTotal(service), 0
     );
   };
-
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -211,7 +230,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
           </button>
         </div>
 
-        {/* Services List */}
         {formData.services.length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg">
             <div className="text-gray-500">
@@ -224,11 +242,10 @@ const ServicesForm = ({ formData, setFormData, space }) => {
           <div className="space-y-4">
             {formData.services.map((service, index) => (
               <div
-                key={index}
+                key={service._id || service._tempId || index}
                 className="bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 
                   transition-colors"
               >
-                {/* Service Header */}
                 <div
                   className="p-4 flex justify-between items-center cursor-pointer"
                   onClick={() => toggleServiceCollapse(index)}
@@ -246,6 +263,11 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                           (₹{calculateServiceTotal(service).toFixed(2)})
                         </span>
                       )}
+                      {!service.isPending && (
+                        <span className="text-xs text-gray-500 ml-2">
+                          {/* {formatDateTime(service.dateTime)} */}
+                        </span>
+                      )}
                     </h4>
                   </div>
                   <div className="flex items-center gap-2">
@@ -255,22 +277,19 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeService(index);
+                        setServiceToDelete(index);
                       }}
                       disabled={loading[index]}
-                      className="text-gray-400 hover:text-red-600 transition-colors
-                        disabled:opacity-50"
+                      className="text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
                     >
                       <X size={18} />
                     </button>
                   </div>
                 </div>
 
-                {/* Service Details */}
                 {!collapsedServices[index] && (
                   <div className="px-4 pb-4 border-t border-gray-200">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-                      {/* Service Name */}
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-600">
                           Service Name*
@@ -280,14 +299,10 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                           value={service.serviceName}
                           onChange={(e) => updateService(index, 'serviceName', e.target.value)}
                           placeholder="Enter service name"
-                          className={`w-full px-4 py-2 rounded-lg border ${
-                            validationErrors[index] ? 
-                              'border-red-500' : 'border-gray-200'
-                          }`}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-200"
                         />
                       </div>
 
-                      {/* Service Type */}
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-600">
                           Service Type*
@@ -305,7 +320,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                         </select>
                       </div>
 
-                      {/* Units */}
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-600">
                           Units*
@@ -319,7 +333,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                         />
                       </div>
 
-                      {/* Cost per Unit */}
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-600">
                           Cost per Unit*
@@ -334,7 +347,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                         />
                       </div>
 
-                      {/* Date & Time */}
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-600">
                           Date & Time*
@@ -347,7 +359,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                         />
                       </div>
 
-                      {/* Remarks */}
                       <div className="space-y-2 md:col-span-2 lg:col-span-3">
                         <label className="block text-sm font-medium text-gray-600">
                           Remarks
@@ -361,7 +372,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
                         />
                       </div>
 
-                      {/* Save Button & Total */}
                       <div className="md:col-span-2 lg:col-span-3 pt-4 border-t">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
@@ -389,7 +399,6 @@ const ServicesForm = ({ formData, setFormData, space }) => {
               </div>
             ))}
 
-            {/* Grand Total */}
             {formData.services.length > 0 && (
               <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex justify-between items-center">
@@ -403,8 +412,36 @@ const ServicesForm = ({ formData, setFormData, space }) => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {serviceToDelete !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full m-4">
+            <h3 className="text-lg font-semibold mb-2">Delete Service</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete this service? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setServiceToDelete(null)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  removeService(serviceToDelete);
+                  setServiceToDelete(null);
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 export default ServicesForm;

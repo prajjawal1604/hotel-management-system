@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, Trash2, Calendar, User, Phone, Clock, Filter, ChevronDown } from 'lucide-react';
 import AdvancedBookingForm from './AdvancedBookingForm';
 import RoomAssignmentModal from './RoomAssignmentModal';
+import { useRoomsStore } from '../../../store/roomsStore.js';
 
 const DATE_FILTERS = {
   ALL: 'all',
@@ -26,6 +27,9 @@ const AdvancedBookingModal = ({ onClose }) => {
   // Modal states
   const [showRoomAssignModal, setShowRoomAssignModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+
+  
+    const orgDetails = useRoomsStore((state) => state.orgDetails);
 
   // Fetch bookings
   const fetchBookings = async () => {
@@ -58,6 +62,7 @@ const AdvancedBookingModal = ({ onClose }) => {
       if (!window.confirm('Are you sure you want to delete this advance booking?')) {
         return;
       }
+      console.log('Deleting booking:', booking);
   
       setDeletingBookingId(booking._id);
       setError(null);
@@ -68,6 +73,112 @@ const AdvancedBookingModal = ({ onClose }) => {
         await fetchBookings(); // Refresh the list
       } else {
         throw new Error(result.message || 'Failed to delete booking');
+      }
+      const emailData = {
+        to: orgDetails.email, // Replace with the hotel's owner email
+        subject: 'Booking Cancellation Notification',
+        html: `
+          <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  line-height: 1.6;
+                  color: #333;
+                }
+                .email-container {
+                  max-width: 600px;
+                  margin: 0 auto;
+                  padding: 20px;
+                  border: 1px solid #ddd;
+                  border-radius: 8px;
+                  background-color: #f9f9f9;
+                }
+                .header {
+                  text-align: center;
+                  margin-bottom: 20px;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 24px;
+                  color:rgb(255, 0, 0);
+                }
+                .details {
+                  margin-bottom: 20px;
+                }
+                .details h2 {
+                  margin: 0 0 10px;
+                  font-size: 18px;
+                  color: #333;
+                }
+                .details p {
+                  margin: 0;
+                }
+                .footer {
+                  text-align: center;
+                  margin-top: 20px;
+                  font-size: 12px;
+                  color: #999;
+                }
+                .footer a {
+                  color: #007bff;
+                  text-decoration: none;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="email-container">
+                <div class="header">
+                  <h1>Advancd Booking Cancellation!!!</h1>
+                </div>
+
+                <div class="details">
+                  <h2>Guest Details</h2>
+                  <p><strong>Name:</strong> {{guestName}}</p>
+                  <p><strong>Phone Number:</strong> {{guestPhone}}</p>
+                  <p><strong>Gender:</strong> {{guestGender}}</p>
+                  <p><strong>Nationality:</strong> {{guestNationality}}</p>
+                  <p><strong>Address:</strong> {{guestAddress}}</p>
+                  <p><strong>Purpose of Visit:</strong> {{guestPurpose}}</p>
+                </div>
+
+                <div class="details">
+                  <h2>Booking Details</h2>
+                  <p><strong>Check-In:</strong> {{checkIn}}</p>
+                  <p><strong>Check-Out:</strong> {{checkOut}}</p>
+                  <p><strong>Booking Type:</strong> {{bookingType}}</p>
+                  <p><strong>Advance Amount:</strong> {{advanceAmount}}</p>
+                </div>
+
+                <div class="footer">
+                  <p>Thank you for using our hotel management system.</p>
+                  <p>Need help? Contact us at <a href="mailto:{{hotelEmail}}">quasar-help</a>.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+
+        `.replace('{{guestName}}', booking.guestId?.fullName)
+          .replace('{{guestPhone}}', booking.guestId?.phoneNumber)
+          .replace('{{guestGender}}', booking.guestId?.gender)
+          .replace('{{guestNationality}}', booking.guestId?.nationality || 'N/A')
+          .replace('{{guestAddress}}', booking.guestId?.address || 'N/A')
+          .replace('{{guestPurpose}}', booking.guestId?.purposeOfVisit || 'N/A')
+          .replace('{{checkIn}}', new Date(booking.checkIn).toLocaleDateString())
+          .replace('{{checkOut}}', new Date(booking.checkOut).toLocaleDateString())
+          .replace('{{bookingType}}', booking.bookingType)
+          .replace('{{advanceAmount}}', booking.advanceAmount || 'N/A')
+          .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
+      };
+
+      const response = await window.electron.sendEmail(emailData);
+      if (response.success) {
+        console.log('Email sent successfully:', response.messageId);
+      } else {
+        console.error('Failed to send email:', response.error);
       }
     } catch (err) {
       setError(err.message);
@@ -91,7 +202,117 @@ const AdvancedBookingModal = ({ onClose }) => {
 
       console.log('Created booking:', result.data);
       await fetchBookings(); // Refresh the list
+      
       setActiveTab('list');
+
+      const emailData = {
+        
+        to: orgDetails.email, // Replace with the hotel's owner email
+         // Replace with the hotel's owner email
+          subject: 'Advanced Booking Notification',
+          html: `
+            <!DOCTYPE html>
+              <html lang="en">
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            .email-container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              background-color: #f9f9f9;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+              color: #007bff;
+            }
+            .details {
+              margin-bottom: 20px;
+            }
+            .details h2 {
+              margin: 0 0 10px;
+              font-size: 18px;
+              color: #333;
+            }
+            .details p {
+              margin: 0;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 20px;
+              font-size: 12px;
+              color: #999;
+            }
+            .footer a {
+              color: #007bff;
+              text-decoration: none;
+            }
+                </style>
+              </head>
+              <body>
+                <div class="email-container">
+            <div class="header">
+              <h1>Advanced Booking Notification</h1>
+            </div>
+
+            <div class="details">
+              <h2>Guest Details</h2>
+              <p><strong>Name:</strong> {{guestName}}</p>
+              <p><strong>Phone Number:</strong> {{guestPhone}}</p>
+              <p><strong>Gender:</strong> {{guestGender}}</p>
+              <p><strong>Nationality:</strong> {{guestNationality}}</p>
+              <p><strong>Address:</strong> {{guestAddress}}</p>
+              <p><strong>Purpose of Visit:</strong> {{guestPurpose}}</p>
+            </div>
+
+            <div class="details">
+              <h2>Booking Details</h2>
+              <p><strong>Check-In:</strong> {{checkIn}}</p>
+              <p><strong>Check-Out:</strong> {{checkOut}}</p>
+              <p><strong>Booking Type:</strong> {{bookingType}}</p>
+              <p><strong>Advance Amount:</strong> {{advanceAmount}}</p>
+            </div>
+
+            <div class="footer">
+              <p>Thank you for using our hotel management system.</p>
+              <p>Need help? Contact us at <a href="mailto:{{hotelEmail}}">quasar-help</a>.</p>
+            </div>
+                </div>
+              </body>
+              </html>
+
+          `.replace('{{guestName}}', formData.fullName)
+           .replace('{{guestPhone}}', formData.phoneNumber)
+           .replace('{{guestGender}}', formData.gender)
+           .replace('{{guestNationality}}', formData.nationality || 'N/A')
+           .replace('{{guestAddress}}', formData.address || 'N/A')
+           .replace('{{guestPurpose}}', formData.purposeOfVisit || 'N/A')
+           .replace('{{checkIn}}', new Date(formData.checkIn).toLocaleDateString())
+           .replace('{{checkOut}}', new Date(formData.checkOut).toLocaleDateString())
+           .replace('{{bookingType}}', formData.bookingType)
+           .replace('{{advanceAmount}}', formData.advanceAmount || 'N/A')
+           .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
+      };
+        const response = await window.electron.sendEmail(emailData);
+      if (response.success) {
+        console.log('Email sent successfully:', response.messageId);
+      } else {
+        console.error('Failed to send email:', response.error);
+      }
+
     } catch (err) {
       setError(err.message);
       console.error('Error creating booking:', err);

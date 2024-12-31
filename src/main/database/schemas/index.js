@@ -68,7 +68,8 @@ const serviceSchema = new mongoose.Schema({
     serviceType: { type: String, enum: ["FOOD", "LAUNDRY", "HOUSEKEEPING", "OTHER"] },
     units: Number,
     remarks: String,
-    costPerUnit: Number
+    costPerUnit: Number,
+    dateTime: { type: Date, default: Date.now }
 });
 
 const bookingSchema = new mongoose.Schema({
