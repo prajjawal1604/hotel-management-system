@@ -45,6 +45,7 @@
     "@electron-toolkit/eslint-config": "^1.0.2",
     "@electron-toolkit/eslint-config-prettier": "^2.0.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "app-builder-bin": "^4.2.0",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "electron": "^33.2.1",

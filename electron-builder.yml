@@ -9,6 +9,7 @@ files:
   - "package.json"
   - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
   - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/.env*"
 asarUnpack:
   - resources/**
 asar: true
@@ -28,7 +29,7 @@ win:
   requestedExecutionLevel: requireAdministrator
 
 nsis:
-  artifactName: ${name}-${version}-setup.${ext}
+  artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -39,11 +40,12 @@ nsis:
   include: build/installer.nsh
   runAfterFinish: true
   packElevateHelper: true
+  multiLanguageInstaller: true
 
 portable:
-  artifactName: ${name}-${version}-portable.${ext}
-  description: A portable version of the Hotel Management System
+  artifactName: ${productName}-${version}-portable.${ext}
   requestExecutionLevel: user
+  useZip: false
 
 mac:
   target:
@@ -53,7 +55,6 @@ mac:
   extendInfo:
     NSAppTransportSecurity:
       NSAllowsArbitraryLoads: true
-  # identity: "Developer ID Application: quasar.in"
 
 npmRebuild: false
 compression: normal
