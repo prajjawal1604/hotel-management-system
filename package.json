@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "An Electron application with React",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "quasar.in",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
@@ -21,7 +21,6 @@
     "build:linux": "npm run build && electron-builder --linux --config electron-builder.yml",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "prebuild": "rimraf out dist"
-
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
@@ -48,7 +47,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
-    "electron": "^28.1.0",
+    "electron": "^33.2.1",
     "electron-builder": "^24.9.1",
     "electron-is-dev": "^2.0.0",
     "electron-rebuild": "^3.2.9",

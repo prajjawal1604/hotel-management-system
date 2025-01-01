@@ -4,7 +4,7 @@ directories:
   output: dist
   buildResources: build
 files:
-  - "out/**/*"  # This is correct
+  - "out/**/*"
   - "resources/**/*"
   - "package.json"
   - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
@@ -18,6 +18,13 @@ win:
   icon: resources/icon.ico
   target:
     - target: nsis
+      arch:
+        - x64
+        - ia32
+    - target: portable
+      arch:
+        - x64
+        - ia32
   requestedExecutionLevel: requireAdministrator
 
 nsis:
@@ -25,12 +32,28 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  createStartMenuShortcut: true
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: true
   include: build/installer.nsh
   runAfterFinish: true
   packElevateHelper: true
+
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
+  description: A portable version of the Hotel Management System
+  requestExecutionLevel: user
+
+mac:
+  target:
+    - dmg
+    - zip
+  icon: resources/icon.icns
+  extendInfo:
+    NSAppTransportSecurity:
+      NSAllowsArbitraryLoads: true
+  # identity: "Developer ID Application: quasar.in"
 
 npmRebuild: false
 compression: normal
