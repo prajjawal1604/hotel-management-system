@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { X, FileText, PlusCircle, Edit, Save } from 'lucide-react'; 
+import { X, FileText, PlusCircle, Edit } from 'lucide-react';
 import HotelBill from './HotelBill';
 import { useRoomsStore } from '../../../store/roomsStore';
 
@@ -13,7 +13,6 @@ const PAYMENT_MODES = {
 };
 
 const CheckoutModal = ({ formData, space, onClose }) => {
-  const dateInputRef = useRef(null);
   const [checkoutData, setCheckoutData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,71 +39,42 @@ useEffect(() => {
 const calculateDays = (checkIn, checkOut) => {
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
-  
-  // Helper function to set time to 8 AM for comparison
+
+  // Helper function to set time to 8 AM
   const setTo8AM = (date) => {
     const newDate = new Date(date);
     newDate.setHours(8, 0, 0, 0);
     return newDate;
   };
 
-  
+  // Get 8 AM of check-in and check-out dates
+  const checkIn8AM = setTo8AM(checkInDate);
+  const checkOut8AM = setTo8AM(checkOutDate);
 
-  // Get the next 8 AM after check-in
-  const firstDay8AM = setTo8AM(checkInDate);
-  if (checkInDate > firstDay8AM) {
-    firstDay8AM.setDate(firstDay8AM.getDate());
+  // Start counting days
+  let days = 0;
+
+  // Count the first day
+  if (checkInDate < checkIn8AM) {
+    days += 1; // Check-in is before 8 AM, count the day
+  } else {
+    days += 1; // Check-in is after 8 AM, count from the next 8 AM
   }
 
-  // Get the 8 AM of checkout day
-  const lastDay8AM = setTo8AM(checkOutDate);
-
-  // Calculate base days
-  let days = 1; // Start with 1 for the first day
-
-  // If checkout is after 8 AM of any day, add another day
-  if (checkOutDate >= lastDay8AM) {
- 
-  const startDate = new Date(checkInDate);
-  startDate.setHours(12, 0, 0, 0);
-  const endDate = new Date(checkOutDate);
-  endDate.setHours(12, 0, 0, 0);
- 
-  const isSameDay = startDate.getTime() === endDate.getTime();
- 
+  // Calculate full 8 AM to 8 AM days in between
   const millisPerDay = 24 * 60 * 60 * 1000;
-  const baseDays = Math.floor((endDate - startDate) / millisPerDay);
- 
-  let days = baseDays + 1;
- 
-  const checkInHour = checkInDate.getHours();
-  if (checkInHour < 8) {
+  const fullDays = Math.floor((checkOut8AM - checkIn8AM) / millisPerDay);
+
+  days += fullDays;
+
+  // Add an additional day if check-out is after 8 AM
+  if (checkOutDate > checkOut8AM) {
     days += 1;
   }
- 
-  const checkOutHour = checkOutDate.getHours();
-  if (checkOutHour >= 8 && !isSameDay) {
-    days += 1;
-  }
- 
+
   return days;
 };
   
-
-const handleSaveCheckout = () => {
-  const newDate = dateInputRef.current.value;
-  const checkInDate = new Date(formData.checkIn);
-  const checkOutDate = new Date(newDate);
-  
-  if (checkOutDate < checkInDate) {
-    setError("Checkout date cannot be earlier than check-in date");
-    return;
-  }
-  
-  setCheckoutDateTime(newDate);
-  setIsEditingCheckout(false);
-  setError(null);
-};
 
 // Update the useEffect that calculates checkout
 useEffect(() => {
@@ -120,7 +90,7 @@ useEffect(() => {
         checkIn: formData.checkIn,
         checkOut: new Date(checkoutDateTime),
         services: formData.services,
-        days: days
+        days: days // Pass the calculated days
       });
 
       if (!result.success) {
@@ -129,7 +99,7 @@ useEffect(() => {
 
       setCheckoutData({
         ...result.data,
-        roomCharges: space.basePrice * days
+        roomCharges: space.basePrice * days // Update room charges based on our calculation
       });
     } catch (err) {
       setError(err.message);
@@ -392,22 +362,14 @@ const updateMiscCharge = (index, field, value) => {
   <span className="font-medium">Check-out:</span>
   <div className="flex items-center gap-2">
     {isEditingCheckout ? (
-      <>
-        <input
-          type="datetime-local"
-          defaultValue={checkoutDateTime}
-          className="border rounded-md px-2 py-1"
-          ref={dateInputRef}
-          autoFocus
-        />
-        <button 
-          onClick={handleSaveCheckout}
-          className="text-blue-600 hover:text-blue-700"
-          title="Save changes"
-        >
-          <Save size={16} />
-        </button>
-      </>
+      <input
+        type="datetime-local"
+        value={checkoutDateTime}
+        onChange={(e) => setCheckoutDateTime(e.target.value)}
+        className="border rounded-md px-2 py-1"
+        onBlur={() => setIsEditingCheckout(false)}
+        autoFocus
+      />
     ) : (
       <>
         <span>{formatDisplayDateTime(checkoutDateTime)}</span>
