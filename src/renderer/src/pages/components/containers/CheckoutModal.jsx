@@ -37,43 +37,36 @@ useEffect(() => {
 
 // Add this helper function
 const calculateDays = (checkIn, checkOut) => {
+  const roundToPrevious8AM = (date) => {
+    const roundedDate = new Date(date);
+    roundedDate.setHours(8, 0, 0, 0); // Set time to 8:00 AM
+    if (date.getHours() < 8) {
+      roundedDate.setDate(roundedDate.getDate() - 1); // Move to the previous day
+    }
+    return roundedDate;
+  };
+
+  const roundToNext8AM = (date) => {
+    const roundedDate = new Date(date);
+    roundedDate.setHours(8, 0, 0, 0); // Set time to 8:00 AM
+    if (date.getHours() >= 8) {
+      roundedDate.setDate(roundedDate.getDate() + 1); // Move to the next day
+    }
+    return roundedDate;
+  };
+
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
 
-  // Helper function to set time to 8 AM
-  const setTo8AM = (date) => {
-    const newDate = new Date(date);
-    newDate.setHours(8, 0, 0, 0);
-    return newDate;
-  };
+  const roundedCheckIn = roundToPrevious8AM(checkInDate);
+  const roundedCheckOut = roundToNext8AM(checkOutDate);
 
-  // Get 8 AM of check-in and check-out dates
-  const checkIn8AM = setTo8AM(checkInDate);
-  const checkOut8AM = setTo8AM(checkOutDate);
-
-  // Start counting days
-  let days = 0;
-
-  // Count the first day
-  if (checkInDate < checkIn8AM) {
-    days += 1; // Check-in is before 8 AM, count the day
-  } else {
-    days += 1; // Check-in is after 8 AM, count from the next 8 AM
-  }
-
-  // Calculate full 8 AM to 8 AM days in between
-  const millisPerDay = 24 * 60 * 60 * 1000;
-  const fullDays = Math.floor((checkOut8AM - checkIn8AM) / millisPerDay);
-
-  days += fullDays;
-
-  // Add an additional day if check-out is after 8 AM
-  if (checkOutDate > checkOut8AM) {
-    days += 1;
-  }
+  const timeDifference = roundedCheckOut - roundedCheckIn;
+  const days = timeDifference / (1000 * 60 * 60 * 24); // Convert milliseconds to days
 
   return days;
 };
+
   
 
 // Update the useEffect that calculates checkout
