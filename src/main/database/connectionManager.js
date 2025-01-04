@@ -1,23 +1,21 @@
 import mongoose from 'mongoose';
 import models from './models';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class ConnectionManager {
     constructor() {
         this.masterConnection = null;
         this.orgConnection = null;
-
-        // Hardcoded credentials
-        this.masterUri = 'mongodb+srv://master:mmr%4012345@master-cluster.xu0s7.mongodb.net/?retryWrites=true&w=majority&appName=master-cluster';
-        this.orgName = 'Maa Mangala Residency';
-
-        console.log('DB Connection Initialized');
+        this.orgName = process.env.ORG_NAME;
     }
 
-    // Connect to Master DB
+    // Connect to master DB
     async connectToMaster() {
         try {
             if (!this.masterConnection) {
-                this.masterConnection = await mongoose.createConnection(this.masterUri);
+                this.masterConnection = await mongoose.createConnection(process.env.MASTER_DB_URI);
                 models.initializeMasterModels(this.masterConnection);
                 console.log('Connected to Master DB');
             }
@@ -28,36 +26,53 @@ class ConnectionManager {
         }
     }
 
-    // Validate and Retrieve Organization DB URI
-    async validateAndGetOrgUri() {
-        try {
-            console.log(`Searching for organization: "${this.orgName}"`);
-            if (!this.masterConnection) {
-                throw new Error('Master DB connection is not initialized. Call connectToMaster first.');
-            }
-            const masterDb = this.masterConnection.useDb('test');
-            const organizations = masterDb.collection('organizations');
-            const org = await organizations.findOne({ orgName: this.orgName });
-            if (!org) {
-                throw new Error(`Organization not found: "${this.orgName}"`);
-            }
-            if (!org.orgDbUri) {
-                throw new Error(`Organization URI not found for: "${this.orgName}"`);
-            }
-            return org.orgDbUri;
-        } catch (error) {
-            console.error('Org Validation Error:', error);
-            throw error;
-        }
-    }
+    // Validate org and get connection URI
+    // Validate org and get connection URI (Hardcoded orgName)
+async validateAndGetOrgUri() {
+    try {
+        console.log(`Searching for organization: "Maa Mangala Residency"`);
 
-    // Connect to Organization DB
+        // Ensure the master connection exists
+        if (!this.masterConnection) {
+            throw new Error("Master DB connection is not initialized. Call connectToMaster first.");
+        }
+
+        // Get master database explicitly
+        const masterDb = this.masterConnection.useDb('test');
+
+        // Get organizations collection
+        const organizations = masterDb.collection('organizations');
+
+        // Hardcoded organization name for now
+        const org = await organizations.findOne({ orgName: "Maa Mangala Residency" }); // Match exact field name and value
+        console.log('Query result:', org);
+
+        if (!org) {
+            throw new Error(`Organization not found: "Maa Mangala Residency"`);
+        }
+
+        if (!org.orgDbUri) {
+            throw new Error(`Organization URI not found for: "Maa Mangala Residency"`);
+        }
+
+        return org.orgDbUri; // Return the database URI
+    } catch (error) {
+        console.error('Org Validation Error:', error.message);
+        throw error;
+    }
+}
+
+
+    // Connect to org DB
     async connectToOrg() {
         try {
-            const orgDbUri = await this.validateAndGetOrgUri();
+            const orgDbUri = await this.validateAndGetOrgUri(this.orgName);
+            
+            // Close existing org connection if any
             if (this.orgConnection) {
                 await this.orgConnection.close();
             }
+
             this.orgConnection = await mongoose.createConnection(orgDbUri);
             models.initializeOrgModels(this.orgConnection);
             console.log('Connected to Org DB');
@@ -68,16 +83,24 @@ class ConnectionManager {
         }
     }
 
-    // Cleanup Method
+    // Get current connections
+    getMasterConnection() {
+        return this.masterConnection;
+    }
+
+    getOrgConnection() {
+        return this.orgConnection;
+    }
+
+    // Cleanup method
     async closeConnections() {
         if (this.masterConnection) await this.masterConnection.close();
         if (this.orgConnection) await this.orgConnection.close();
         this.masterConnection = null;
         this.orgConnection = null;
-        console.log('DB Connections Closed');
     }
 }
 
-// Export Singleton Instance
+// Export a singleton instance
 const connectionManager = new ConnectionManager();
 export default connectionManager;

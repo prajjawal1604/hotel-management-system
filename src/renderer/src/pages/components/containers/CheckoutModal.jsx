@@ -35,43 +35,36 @@ useEffect(() => {
   const advance = parseFloat(formData.advanceAmount);
   const orgDetails = useRoomsStore((state) => state.orgDetails);
 
-  // Add this helper function
+// Add this helper function
 const calculateDays = (checkIn, checkOut) => {
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
-  
-  // Helper function to set time to 8 AM for comparison
-  const setTo8AM = (date) => {
-    const newDate = new Date(date);
-    newDate.setHours(8, 0, 0, 0);
-    return newDate;
-  };
-
-  // Get the next 8 AM after check-in
-  const firstDay8AM = setTo8AM(checkInDate);
-  if (checkInDate > firstDay8AM) {
-    firstDay8AM.setDate(firstDay8AM.getDate());
-  }
-
-  // Get the 8 AM of checkout day
-  const lastDay8AM = setTo8AM(checkOutDate);
-
-  // Calculate base days
-  let days = 1; // Start with 1 for the first day
-
-  // If checkout is after 8 AM of any day, add another day
-  if (checkOutDate >= lastDay8AM) {
+ 
+  const startDate = new Date(checkInDate);
+  startDate.setHours(12, 0, 0, 0);
+  const endDate = new Date(checkOutDate);
+  endDate.setHours(12, 0, 0, 0);
+ 
+  const isSameDay = startDate.getTime() === endDate.getTime();
+ 
+  const millisPerDay = 24 * 60 * 60 * 1000;
+  const baseDays = Math.floor((endDate - startDate) / millisPerDay);
+ 
+  let days = baseDays + 1;
+ 
+  const checkInHour = checkInDate.getHours();
+  if (checkInHour < 8) {
     days += 1;
   }
-
-  // Add any full days in between
-  if (lastDay8AM > firstDay8AM) {
-    const millisPerDay = 24 * 60 * 60 * 1000;
-    days += Math.floor((lastDay8AM - firstDay8AM) / millisPerDay);
+ 
+  const checkOutHour = checkOutDate.getHours();
+  if (checkOutHour >= 8 && !isSameDay) {
+    days += 1;
   }
-
+ 
   return days;
 };
+  
 
 // Update the useEffect that calculates checkout
 useEffect(() => {

@@ -1791,10 +1791,28 @@ ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePat
             body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
             .content { padding: 20px; text-align: center; }
             .page-break { page-break-before: always; }
+            .signature-section { margin-top: 40px; padding: 20px; text-align: left; }
+            .signature { display: flex; justify-content: space-between; margin-top: 50px; }
+            .signature div { text-align: center; }
+            .signature div p { margin-top: 60px; border-top: 1px solid #000; width: 200px; margin-left: auto; margin-right: auto; }
           </style>
         </head>
         <body>
           ${htmlContent}
+
+          <!-- Manager and Client Signatures -->
+          <div class="signature-section">
+            <h3>Signatures</h3>
+            <div class="signature">
+              <div>
+                <p>Manager Signature</p>
+              </div>
+              <div>
+                <p>Client Signature</p>
+              </div>
+            </div>
+          </div>
+
           ${additionalContent}
         </body>
       </html>
@@ -1808,12 +1826,12 @@ ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePat
       path: outputFilePath,
       format: 'A4',
       printBackground: true,
-      // margin: {
-      //   top: '20mm',
-      //   bottom: '20mm',
-      //   left: '15mm',
-      //   right: '15mm',
-      // },
+      margin: {
+        top: '20mm',
+        bottom: '20mm',
+        left: '15mm',
+        right: '15mm',
+      },
       displayHeaderFooter: true,
       footerTemplate: `
         <div style="font-size:10px; text-align:center; width:100%; color: #888; padding: 5px 0;margin-top: 20px;">
@@ -1832,6 +1850,7 @@ ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePat
     return { success: false, message: 'Failed to generate PDF', error: error.message };
   }
 });
+
 
 ipcMain.handle('get-path', (event, name) => {
   try {

@@ -80,7 +80,7 @@ const HotelBill = ({
     <div
       style={{
         fontFamily: "Arial, sans-serif",
-        margin: "20px auto",
+        margin: "auto auto",
         padding: "20px",
         backgroundColor: "#fff",
         maxWidth: "800px",
@@ -109,13 +109,13 @@ const HotelBill = ({
       {/* Hotel Details */}
       <div style={{ textAlign: "center", marginBottom: "20px" }}>
         <h1 style={{ margin: 0, fontSize: "24px", color: "#007bff" }}>{orgName}</h1>
-        <p>1234 Residency Lane, Bhubaneswar, Odisha, India</p>
-        <p>Email: {orgEmail} | Phone: +91 98765 43210</p>
+        <p>Near Batamangala Temple, Jeypore Road, Koraput, Odisha - 764020</p>
+        <p>Email: {orgEmail} | Phone: 06852291018,0685225128</p>
         <p>GST Number: {gstID}</p>
       </div>
 
       {/* Guest Details */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px",  pageBreakInside: "avoide" }}>
         <h2 style={{ textAlign: "center", marginBottom: "15px", fontSize: "18px", color: "#333" }}>
           Guest Details
         </h2>
@@ -134,7 +134,7 @@ const HotelBill = ({
       </div>
 
       {/* Room Details */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px",  pageBreakInside: "avoide" }}>
         <h2 style={{ textAlign: "center", marginBottom: "15px", fontSize: "18px", color: "#333" }}>
           Room Details and Cost
         </h2>
@@ -162,7 +162,7 @@ const HotelBill = ({
       </div>
 
       {/* Services */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px",  pageBreakInside: "avoide" }}>
         <h2 style={{ textAlign: "center", marginBottom: "15px", fontSize: "18px", color: "#333" }}>
           Services
         </h2>
@@ -193,7 +193,7 @@ const HotelBill = ({
       </div>
 
       {/* Miscellaneous Costs */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px",  pageBreakInside: "avoide" }}>
         <h2 style={{ textAlign: "center", marginBottom: "15px", fontSize: "18px", color: "#333" }}>
           Miscellaneous Costs
         </h2>
@@ -219,7 +219,7 @@ const HotelBill = ({
       </div>
 
       {/* GST Details */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px",  pageBreakInside: "avoide" }}>
         <h2 style={{ textAlign: "center", marginBottom: "15px", fontSize: "18px", color: "#333" }}>
           GST Details
         </h2>
@@ -247,7 +247,7 @@ const HotelBill = ({
       </div>
 
       {/* Final Amount */}
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "20px",  pageBreakInside: "avoide" }}>
         <h2 style={{ textAlign: "center", marginBottom: "15px", fontSize: "18px", color: "#333" }}>
           Final Amount
         </h2>

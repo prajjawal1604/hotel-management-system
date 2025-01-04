@@ -1,60 +1,44 @@
-appId: com.hms.app
-productName: Hotel Management System
+appId: com.electron.app
+productName: hotel-management-system
 directories:
-  output: dist
   buildResources: build
 files:
-  - "out/**/*"
-  - "resources/**/*"
-  - "package.json"
-  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
-  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
-  - "!**/.env*"
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
 asarUnpack:
   - resources/**
-asar: true
-
 win:
-  executableName: Hotel Management System
-  icon: resources/icon.ico
-  target:
-    - target: nsis
-      arch:
-        - x64
-        - ia32
-    - target: portable
-      arch:
-        - x64
-        - ia32
-  requestedExecutionLevel: requireAdministrator
-
+  executableName: hotel-management-system
 nsis:
-  artifactName: ${productName}-${version}-setup.${ext}
+  artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  createStartMenuShortcut: true
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  perMachine: true
-  include: build/installer.nsh
-  runAfterFinish: true
-  packElevateHelper: true
-  multiLanguageInstaller: true
-
-portable:
-  artifactName: ${productName}-${version}-portable.${ext}
-  requestExecutionLevel: user
-  useZip: false
-
 mac:
-  target:
-    - dmg
-    - zip
-  icon: resources/icon.icns
+  entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    NSAppTransportSecurity:
-      NSAllowsArbitraryLoads: true
-
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: electronjs.org
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-compression: normal
+publish:
+  provider: generic
+  url: https://example.com/auto-updates
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

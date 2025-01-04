@@ -6,24 +6,15 @@ import autoprefixer from 'autoprefixer'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
-    build: {
-      outDir: 'out/main'
-    }
+    plugins: [externalizeDepsPlugin()]
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
-    build: {
-      outDir: 'out/preload'
-    }
+    plugins: [externalizeDepsPlugin()]
   },
   renderer: {
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer/src'),
-        '@assets': resolve('src/renderer/assets'),
-        '@components': resolve('src/renderer/src/components'),
-        '@utils': resolve('src/renderer/src/utils')
+        '@renderer': resolve('src/renderer/src')
       }
     },
     css: {
@@ -33,9 +24,6 @@ export default defineConfig({
           autoprefixer
         ]
       }
-    },
-    build: {
-      outDir: 'out/renderer'
     },
     plugins: [react()]
   }
