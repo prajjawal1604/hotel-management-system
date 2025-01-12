@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
-import { X, FileText, PlusCircle, Edit } from 'lucide-react';
+import { X, FileText, PlusCircle, Edit, Users } from 'lucide-react';
 import HotelBill from './HotelBill';
 import { useRoomsStore } from '../../../store/roomsStore';
+import CheckoutDateTimeInput from '../../../components/CheckoutDateTimeInput';
 
 const PAYMENT_MODES = {
   CASH: 'CASH',
@@ -13,111 +14,127 @@ const PAYMENT_MODES = {
 };
 
 const CheckoutModal = ({ formData, space, onClose }) => {
+  // Base states
   const [checkoutData, setCheckoutData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modeOfPayment, setModeOfPayment] = useState(PAYMENT_MODES.CASH);
   const [miscCharges, setMiscCharges] = useState([]);
-  const [checkoutDateTime, setCheckoutDateTime] = useState(new Date().toISOString().slice(0, 16));
+  const [checkoutDateTime, setCheckoutDateTime] = useState(new Date().toISOString());
   const [isEditingCheckout, setIsEditingCheckout] = useState(false);
+  const [extraTariff, setExtraTariff] = useState({
+    amount: formData.extraTariff?.amount || 0,
+    remarks: formData.extraTariff?.remarks || '',
+    guestCount: formData.extraTariff?.guestCount || 0
+  });
 
-  // Add this after the checkoutDateTime state
-useEffect(() => {
-  const checkInDate = new Date(formData.checkIn);
-  const checkOutDate = new Date(checkoutDateTime);
-  
-  if (checkOutDate < checkInDate) {
-    setCheckoutDateTime(formData.checkIn);
-    setError("Checkout date cannot be earlier than check-in date");
-  }
-}, [checkoutDateTime, formData.checkIn]);
-
+  // Get advance amount and org details
   const advance = parseFloat(formData.advanceAmount);
   const orgDetails = useRoomsStore((state) => state.orgDetails);
 
-// Add this helper function
-const calculateDays = (checkIn, checkOut) => {
-  const roundToPrevious8AM = (date) => {
-    const roundedDate = new Date(date);
-    roundedDate.setHours(8, 0, 0, 0); // Set time to 8:00 AM
-    if (date.getHours() < 8) {
-      roundedDate.setDate(roundedDate.getDate() - 1); // Move to the previous day
+  // Calculate total guests
+  const calculateTotalGuests = () => {
+    if (!formData.extraGuestCount || formData.extraGuestCount === 0) {
+      return 1 + formData.additionalGuests.length; // Only additional registered guests
+    } else {
+      return 1 + formData.extraGuestCount; // Primary guest + extra guests
     }
-    return roundedDate;
   };
 
-  const roundToNext8AM = (date) => {
-    const roundedDate = new Date(date);
-    roundedDate.setHours(8, 0, 0, 0); // Set time to 8:00 AM
-    if (date.getHours() >= 8) {
-      roundedDate.setDate(roundedDate.getDate() + 1); // Move to the next day
+  // Check for valid checkout date
+  useEffect(() => {
+    const checkInDate = new Date(formData.checkIn);
+    const checkOutDate = new Date(checkoutDateTime);
+    
+    if (checkOutDate < checkInDate) {
+      setCheckoutDateTime(formData.checkIn);
+      setError("Checkout date cannot be earlier than check-in date");
     }
-    return roundedDate;
-  };
+  }, [checkoutDateTime, formData.checkIn]);
 
-  const checkInDate = new Date(checkIn);
-  const checkOutDate = new Date(checkOut);
-
-  const roundedCheckIn = roundToPrevious8AM(checkInDate);
-  const roundedCheckOut = roundToNext8AM(checkOutDate);
-
-  const timeDifference = roundedCheckOut - roundedCheckIn;
-  const days = timeDifference / (1000 * 60 * 60 * 24); // Convert milliseconds to days
-
-  return days;
-};
-
-  
-
-// Update the useEffect that calculates checkout
-useEffect(() => {
-  const calculateCheckout = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const days = calculateDays(formData.checkIn, checkoutDateTime);
-      
-      const result = await window.electron.calculateCheckout({
-        spaceId: space._id,
-        checkIn: formData.checkIn,
-        checkOut: new Date(checkoutDateTime),
-        services: formData.services,
-        days: days // Pass the calculated days
-      });
-
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to calculate checkout details');
+  // Helper function for calculating days
+  const calculateDays = (checkIn, checkOut) => {
+    const roundToPrevious8AM = (date) => {
+      const roundedDate = new Date(date);
+      roundedDate.setHours(8, 0, 0, 0);
+      if (date.getHours() < 8) {
+        roundedDate.setDate(roundedDate.getDate() - 1);
       }
+      return roundedDate;
+    };
 
-      setCheckoutData({
-        ...result.data,
-        roomCharges: space.basePrice * days // Update room charges based on our calculation
-      });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+    const roundToNext8AM = (date) => {
+      const roundedDate = new Date(date);
+      roundedDate.setHours(8, 0, 0, 0);
+      if (date.getHours() >= 8) {
+        roundedDate.setDate(roundedDate.getDate() + 1);
+      }
+      return roundedDate;
+    };
+
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+
+    const roundedCheckIn = roundToPrevious8AM(checkInDate);
+    const roundedCheckOut = roundToNext8AM(checkOutDate);
+
+    const timeDifference = roundedCheckOut - roundedCheckIn;
+    const days = timeDifference / (1000 * 60 * 60 * 24);
+
+    return days;
   };
 
-  calculateCheckout();
-}, [space._id, formData.checkIn, checkoutDateTime, formData.services]);
+  // Calculate checkout effect
+  useEffect(() => {
+    const calculateCheckout = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const days = calculateDays(formData.checkIn, checkoutDateTime);
+        
+        const result = await window.electron.calculateCheckout({
+          spaceId: space._id,
+          checkIn: formData.checkIn,
+          checkOut: new Date(checkoutDateTime),
+          services: formData.services,
+          days: days,
+          extraTariff: formData.extraTariff,
+          extraGuestCount: formData.extraGuestCount || 0
+        });
+
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to calculate checkout details');
+        }
+
+        setCheckoutData({
+          ...result.data,
+          roomCharges: space.basePrice * days,
+          extraTariffAmount: formData.extraTariff?.amount || 0
+        });
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    calculateCheckout();
+  }, [space._id, formData.checkIn, checkoutDateTime, formData.services, formData.extraTariff, formData.extraGuestCount]);
 
   // Handle misc charges
   const addMiscCharge = () => {
     setMiscCharges([...miscCharges, { description: '', amount: '' }]);
   };
 
-  // Update the updateMiscCharge function
-const updateMiscCharge = (index, field, value) => {
-  const updatedCharges = [...miscCharges];
-  updatedCharges[index] = {
-    ...updatedCharges[index],
-    [field]: field === 'amount' ? value.replace(/[^\d.-]/g, '') : value // Changed regex to allow negative sign
+  const updateMiscCharge = (index, field, value) => {
+    const updatedCharges = [...miscCharges];
+    updatedCharges[index] = {
+      ...updatedCharges[index],
+      [field]: field === 'amount' ? value.replace(/[^\d.-]/g, '') : value
+    };
+    setMiscCharges(updatedCharges);
   };
-  setMiscCharges(updatedCharges);
-};
 
   const removeMiscCharge = (index) => {
     setMiscCharges(miscCharges.filter((_, i) => i !== index));
@@ -131,15 +148,25 @@ const updateMiscCharge = (index, field, value) => {
       sum + (parseFloat(charge.amount) || 0), 0
     );
 
-    const subtotal = checkoutData.roomCharges + checkoutData.serviceCharges + miscTotal;
-    const gstAmount = (subtotal - miscTotal) * (orgDetails.gst / 100);
+    const extraTariffAmount = extraTariff.amount || 0;
+    
+    const subtotal = checkoutData.roomCharges + 
+                    checkoutData.serviceCharges + 
+                    miscTotal + 
+                    extraTariffAmount;
+
+    // GST is applied to all charges except misc charges
+    const gstableAmount = subtotal - miscTotal;
+    const gstAmount = gstableAmount * (orgDetails.gst / 100);
 
     return {
       roomCharges: checkoutData.roomCharges,
       serviceCharges: checkoutData.serviceCharges,
       miscTotal,
+      extraTariffAmount,
       gstAmount,
-      grandTotal: subtotal + gstAmount
+      grandTotal: subtotal + gstAmount,
+      subtotal
     };
   };
 
@@ -159,6 +186,24 @@ const updateMiscCharge = (index, field, value) => {
     }
   };
 
+  // Format date/time helpers
+  const formatDisplayDateTime = (date) => {
+    const d = new Date(date);
+    return d.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).replace(',', '');
+  };
+  
+  const formatInputDateTime = (date) => {
+    const d = new Date(date);
+    return d.toISOString().slice(0, 16);
+  };
+
   const handleCheckout = async () => {
     try {
       setIsLoading(true);
@@ -170,8 +215,7 @@ const updateMiscCharge = (index, field, value) => {
       // Get check-in and check-out dates for bill
       const checkInDate = new Date(formData.checkIn);
       const checkOutDate = new Date(checkoutDateTime);
-      const timeDiff = Math.abs(checkOutDate - checkInDate);
-      const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      const days = calculateDays(formData.checkIn, checkoutDateTime);
   
       const checkoutData = {
         spaceId: space._id,
@@ -182,9 +226,11 @@ const updateMiscCharge = (index, field, value) => {
           roomCharges: totals.roomCharges,
           serviceCharges: totals.serviceCharges,
           miscCharges,
+          extraTariff: extraTariff,
           gstAmount: totals.gstAmount,
           totalAmount: totalAmount
         },
+        extraGuestCount: formData.extraGuestCount || 0,
         totalAmount: totalAmount
       };
   
@@ -202,7 +248,7 @@ const updateMiscCharge = (index, field, value) => {
         )
       ];
 
-    console.log('Document paths before PDF:', documentPaths);
+      console.log('Document paths before PDF:', documentPaths);
   
       // Generate PDF with document paths
       const path = await getDesktopPath();
@@ -216,7 +262,7 @@ const updateMiscCharge = (index, field, value) => {
           hotelDetails={orgDetails}
           guestName={formData.fullName}
           guestPhone={formData.phoneNumber}
-          guestAadhar={formData.aadharNumber}
+          guestDocument={formData.documentNumber}
           guestNationality={formData.nationality}
           roomName={space.spaceName}
           roomType={space.spaceType}
@@ -232,6 +278,12 @@ const updateMiscCharge = (index, field, value) => {
             amount: parseFloat(charge.amount) || 0
           }))}
           miscSubtotal={totals.miscTotal}
+          extraTariff={{
+            amount: totals.extraTariffAmount,
+            remarks: formData.extraTariff?.remarks || '',
+            guestCount: formData.extraGuestCount || 0
+          }}
+          totalGuests={calculateTotalGuests()}
           gstPercentage={orgDetails.gst}
           sgstCost={totals.gstAmount / 2}
           cgstCost={totals.gstAmount / 2}
@@ -245,9 +297,7 @@ const updateMiscCharge = (index, field, value) => {
           orgEmail={orgDetails.email}
         />
       );
-  
-      const billingHtml = ReactDOMServer.renderToString(billHtml);
-  
+    
       const pdfOptions = {
         htmlContent: ReactDOMServer.renderToString(billHtml),
         imagePaths: documentPaths,
@@ -261,11 +311,215 @@ const updateMiscCharge = (index, field, value) => {
       // After PDF generation, clean up documents
       await window.electron.cleanupDocuments(space.bookingId);
   
-      const emailData = {
-        to: orgDetails.email,
-        subject: 'Checkout Details',  
-        html: billingHtml,
-      };
+      // Send email with checkout details
+      // Email template with complete styling and data
+const emailData = {
+  to: orgDetails.email,
+  subject: 'Checkout Details',  
+  html: `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          margin: 0;
+          padding: 0;
+        }
+          .guest-count {
+  margin-left: 15px;
+  font-size: 0.9em;
+  color: #555;
+}
+.tariff-details {
+  margin-top: 5px;
+  padding: 5px;
+  background: #f0f4f8;
+  border-radius: 4px;
+}
+        .email-container {
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          background-color: #f9f9f9;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+          padding: 20px;
+          background-color: #007bff;
+          color: white;
+          border-radius: 6px;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+        .details {
+          margin-bottom: 20px;
+          background: white;
+          padding: 20px;
+          border-radius: 6px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .details h2 {
+          margin: 0 0 15px;
+          font-size: 18px;
+          color: #007bff;
+          border-bottom: 2px solid #eee;
+          padding-bottom: 8px;
+        }
+        .details p {
+          margin: 8px 0;
+        }
+        .amount {
+          font-family: monospace;
+          background: #f8f9fa;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+        .charges {
+          background: #f8f9fa;
+          padding: 10px;
+          border-radius: 4px;
+          margin-top: 10px;
+        }
+        .total {
+          margin-top: 15px;
+          padding-top: 15px;
+          border-top: 2px solid #eee;
+          font-weight: bold;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 20px;
+          padding: 20px;
+          font-size: 12px;
+          color: #666;
+          background: white;
+          border-radius: 6px;
+        }
+        .footer a {
+          color: #007bff;
+          text-decoration: none;
+        }
+        .highlight {
+          color: #28a745;
+          font-weight: bold;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="header">
+          <h1>Checkout Details - ${space.spaceName}</h1>
+        </div>
+
+        <div class="details">
+          <h2>Guest Details</h2>
+          <p><strong>Name:</strong> ${formData.fullName}</p>
+          <p><strong>Phone:</strong> ${formData.phoneNumber}</p>
+          <p><strong>Document Number:</strong> ${formData.documentNumber || 'N/A'}</p>
+          <p><strong>Nationality:</strong> ${formData.nationality || 'N/A'}</p>
+          <p><strong>Total Guests:</strong> ${calculateTotalGuests()} 
+            ${formData.extraGuestCount > 0 ? 
+              `(including ${formData.extraGuestCount} extra guests)` : ''}
+          </p>
+          ${formData.companyName ? `
+            <p><strong>Company:</strong> ${formData.companyName}</p>
+            <p><strong>GSTIN:</strong> ${formData.gstin || 'N/A'}</p>
+          ` : ''}
+        </div>
+
+        <div class="details">
+  <h2>Stay Details</h2>
+  <p><strong>Room Number:</strong> ${space.spaceName}</p>
+  <p><strong>Room Type:</strong> ${space.spaceType}</p>
+  <p><strong>Check-in:</strong> ${formatDisplayDateTime(formData.checkIn)}</p>
+  <p><strong>Check-out:</strong> ${formatDisplayDateTime(checkoutDateTime)}</p>
+  <p><strong>Duration:</strong> ${days} days</p>
+  <p><strong>Guest Count:</strong>
+    <br><small>- Primary Guest: 1</small>
+    ${formData.additionalGuests.length > 0 ? `
+      <br><small>- Additional Guests: ${formData.additionalGuests.length}</small>
+    ` : ''}
+    ${extraTariff.guestCount > 0 ? `
+      <br><small>- Extra Guests: ${extraTariff.guestCount}</small>
+    ` : ''}
+    <br><small>Total Guests: ${calculateTotalGuests()}</small>
+  </p>
+</div>
+
+        <div class="details">
+          <h2>Charges Breakdown</h2>
+          <div class="charges">
+            <p><strong>Room Charges:</strong> 
+              <span class="amount">₹${totals.roomCharges.toFixed(2)}</span>
+              <br><small>(${days} days @ ₹${space.basePrice}/day)</small>
+            </p>
+            
+            ${totals.serviceCharges > 0 ? `
+              <p><strong>Service Charges:</strong> 
+                <span class="amount">₹${totals.serviceCharges.toFixed(2)}</span>
+              </p>
+            ` : ''}
+
+            ${totals.extraTariffAmount > 0 ? `
+              <p><strong>Extra Tariff:</strong> 
+                <span class="amount">₹${totals.extraTariffAmount.toFixed(2)}</span>
+                ${extraTariff.guestCount > 0 ? `
+                  <br><small>Extra Guests: ${extraTariff.guestCount}</small>
+                  <br><small>Per Guest: ₹${(extraTariff.amount / extraTariff.guestCount).toFixed(2)}</small>
+                ` : ''}
+                ${extraTariff.remarks ? `<br><small>Remarks: ${extraTariff.remarks}</small>` : ''}
+              </p>
+            ` : ''}
+
+            ${totals.miscTotal > 0 ? `
+              <p><strong>Miscellaneous Charges:</strong> 
+                <span class="amount">₹${totals.miscTotal.toFixed(2)}</span>
+              </p>
+            ` : ''}
+
+
+            <p><strong>GST (${orgDetails.gst}%):</strong> 
+              <span class="amount">₹${totals.gstAmount.toFixed(2)}</span>
+              <br><small>CGST: ₹${(totals.gstAmount/2).toFixed(2)}</small>
+              <br><small>SGST: ₹${(totals.gstAmount/2).toFixed(2)}</small>
+            </p>
+
+            <div class="total">
+              <p><strong>Advance Paid:</strong> 
+                <span class="amount">₹${advance.toFixed(2)}</span>
+              </p>
+              <p><strong>Grand Total:</strong> 
+                <span class="amount highlight">₹${totals.grandTotal.toFixed(2)}</span>
+              </p>
+              <p><strong>Amount Due:</strong> 
+                <span class="amount highlight">₹${(totals.grandTotal - advance).toFixed(2)}</span>
+              </p>
+              <p><strong>Payment Mode:</strong> ${modeOfPayment.replace('_', ' ')}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Thank you for choosing ${orgDetails.orgName}!</p>
+          <p>For any queries, please contact us at <a href="mailto:${orgDetails.email}">${orgDetails.email}</a></p>
+          <p>GST Number: ${orgDetails.gstNumber}</p>
+          ${new Date().toLocaleString()}
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+};
   
       const response = await window.electron.sendEmail(emailData);
       if (!response.success) {
@@ -288,6 +542,7 @@ const updateMiscCharge = (index, field, value) => {
     }
   };
 
+  // Loading state render
   if (isLoading || !checkoutData) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -302,23 +557,6 @@ const updateMiscCharge = (index, field, value) => {
   }
 
   const totals = calculateTotals();
-
-  const formatDisplayDateTime = (date) => {
-    const d = new Date(date);
-    return d.toLocaleString('en-IN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).replace(',', '');
-  };
-  
-  const formatInputDateTime = (date) => {
-    const d = new Date(date);
-    return d.toISOString().slice(0, 16); // Keep the input format as is for the input element
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -337,48 +575,41 @@ const updateMiscCharge = (index, field, value) => {
           </div>
         )}
 
-        
-
         {/* Guest Details Summary */}
         <div className="mt-6 bg-gray-50 rounded-lg p-4">
-  <h3 className="text-lg font-semibold mb-2">Guest Details</h3>
-  <div className="grid grid-cols-2 gap-4">
-    <div>
-      <p><span className="font-medium">Name:</span> {formData.fullName}</p>
-      <p><span className="font-medium">Phone:</span> {formData.phoneNumber}</p>
-      <p><span className="font-medium">Check-in:</span> {formatDisplayDateTime(formData.checkIn)}</p>
-    </div>
-    <div>
-      <p><span className="font-medium">Total Guests:</span> {1 + formData.additionalGuests.length}</p>
-      <p><span className="font-medium">Room Type:</span> {space.spaceType}</p>
-      <div className="flex items-center gap-2">
-  <span className="font-medium">Check-out:</span>
-  <div className="flex items-center gap-2">
-    {isEditingCheckout ? (
-      <input
-        type="datetime-local"
-        value={checkoutDateTime}
-        onChange={(e) => setCheckoutDateTime(e.target.value)}
-        className="border rounded-md px-2 py-1"
-        onBlur={() => setIsEditingCheckout(false)}
-        autoFocus
-      />
-    ) : (
-      <>
-        <span>{formatDisplayDateTime(checkoutDateTime)}</span>
-        <button 
-          onClick={() => setIsEditingCheckout(true)}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <Edit size={16} />
-        </button>
-      </>
-    )}
-  </div>
-</div>
-    </div>
-  </div>
-</div>
+          <h3 className="text-lg font-semibold mb-2">Guest Details</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p><span className="font-medium">Name:</span> {formData.fullName}</p>
+              <p><span className="font-medium">Phone:</span> {formData.phoneNumber}</p>
+              <p><span className="font-medium">Check-in:</span> {formatDisplayDateTime(formData.checkIn)}</p>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Total Guests:</span>
+                <span>{calculateTotalGuests()}</span>
+                {formData.extraGuestCount > 0 && (
+                  <span className="text-sm text-gray-500">
+                    (including {formData.extraGuestCount} extra guests)
+                  </span>
+                )}
+              </div>
+              <p><span className="font-medium">Room Type:</span> {space.spaceType}</p>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Check-out:</span>
+                <CheckoutDateTimeInput
+                  value={checkoutDateTime}
+                  isEditing={isEditingCheckout}
+                  onSave={(newDateTime) => {
+                    setCheckoutDateTime(newDateTime);
+                    setIsEditingCheckout(false);
+                  }}
+                  onEditClick={() => setIsEditingCheckout(true)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Charges Breakdown */}
         <div className="mt-6">
@@ -386,19 +617,14 @@ const updateMiscCharge = (index, field, value) => {
           <div className="space-y-4">
             {/* Room Charges */}
             <div className="bg-gray-50 p-4 rounded-lg">
-  <div className="flex justify-between items-center">
-    <p className="font-medium">Room Charges</p>
-    <p className="text-gray-600">₹{totals.roomCharges.toFixed(2)}</p>
-  </div>
-  {(() => {
-    const days = calculateDays(formData.checkIn, checkoutDateTime);
-    return (
-      <p className="text-sm text-gray-500 mt-1">
-        {days} days @ ₹{space.basePrice}/day (8AM to 8AM policy)
-      </p>
-    );
-  })()}
-</div>
+              <div className="flex justify-between items-center">
+                <p className="font-medium">Room Charges</p>
+                <p className="text-gray-600">₹{totals.roomCharges.toFixed(2)}</p>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {calculateDays(formData.checkIn, checkoutDateTime)} days @ ₹{space.basePrice}/day (8AM to 8AM policy)
+              </p>
+            </div>
 
             {/* Service Charges */}
             {formData.services.length > 0 && (
@@ -417,6 +643,8 @@ const updateMiscCharge = (index, field, value) => {
                 </div>
               </div>
             )}
+
+            
 
             {/* Misc Charges */}
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -487,7 +715,44 @@ const updateMiscCharge = (index, field, value) => {
               </div>
             </div>
 
-            {/* Grand Total */}
+           { /* Extra Tariff - Replace this whole section */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-4">
+                <p className="font-medium">Extra Tariff</p>
+              </div>
+              <div className="grid gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Amount</label>
+                    <input
+                      type="number"
+                      value={extraTariff.amount}
+                      onChange={(e) => setExtraTariff(prev => ({
+                        ...prev,
+                        amount: parseFloat(e.target.value) || 0
+                      }))}
+                      placeholder="Amount"
+                      className="w-full px-3 py-1 border rounded-md"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">Remark</label>
+                    <input
+                      type="text"
+                      value={extraTariff.remarks}
+                      onChange={(e) => setExtraTariff(prev => ({
+                        ...prev,
+                        remarks: e.target.value
+                      }))}
+                      placeholder="Remarks"
+                      className="w-full px-3 py-1 border rounded-md"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+                        {/* Grand Total */}
             <div className="bg-gray-50 p-4 rounded-lg">
               <div className="flex justify-between items-center">
                 <p className="font-medium">Grand Total</p>
@@ -543,7 +808,8 @@ const updateMiscCharge = (index, field, value) => {
           <button
             onClick={handleCheckout}
             disabled={isLoading}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 
+              disabled:opacity-50 flex items-center gap-2"
           >
             <FileText size={20} />
             {isLoading ? 'Processing...' : 'Complete Checkout'}

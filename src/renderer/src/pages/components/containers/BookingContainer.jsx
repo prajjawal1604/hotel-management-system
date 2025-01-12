@@ -46,14 +46,19 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
         phoneNumber: space.bookingId.guestId?.phoneNumber || '',
         gender: space.bookingId.guestId?.gender || '',
         age: space.bookingId.guestId?.age || '',
-        aadharNumber: space.bookingId.guestId?.aadharNumber || '',
+        documentNumber: space.bookingId.guestId?.documentNumber || '',
         nationality: space.bookingId.guestId?.nationality || '',
         address: space.bookingId.guestId?.address || '',
         companyName: space.bookingId.guestId?.companyName || '',
         gstin: space.bookingId.guestId?.gstin || '',
         designation: space.bookingId.guestId?.designation || '',
         purposeOfVisit: space.bookingId.guestId?.purposeOfVisit || '',
-        
+        extraGuestCount: space.bookingId.extraGuestCount || 0,
+      extraTariff: space.bookingId.extraTariff || {
+        amount: 0,
+        remarks: '',
+        guestCount: 0
+      },
         // Booking details - convert dates to correct format
         checkIn: formatDate(space.bookingId.checkIn),
         checkOut: formatDate(space.bookingId.checkOut),
@@ -71,7 +76,13 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
       phoneNumber: '',
       gender: '',
       age: '',
-      aadharNumber: '',
+      documentNumber: '', // Replace aadharNumber
+    extraGuestCount: 0,
+    extraTariff: {
+      amount: 0,
+      remarks: '',
+      guestCount: 0
+    },
       nationality: '',
       address: '',
       companyName: '',
@@ -131,9 +142,6 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     if (!/^\d{10}$/.test(formData.phoneNumber)) errors.phoneNumber = 'Invalid phone number';
     if (!formData.gender) errors.gender = 'Gender is required';
     // if (!formData.age || formData.age < 18) errors.age = 'Guest must be at least 18 years old';
-    if (!formData.aadharNumber || !/^\d{12}$/.test(formData.aadharNumber)) {
-      errors.aadharNumber = 'Valid Aadhar number is required';
-    }
     // if (!formData.nationality?.trim()) errors.nationality = 'Nationality is required';
     // if (!formData.address?.trim()) errors.address = 'Address is required';
 
@@ -143,6 +151,8 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     if (new Date(formData.checkOut) <= new Date(formData.checkIn)) {
       errors.checkOut = 'Check-out must be after check-in';
     }
+    if (formData.extraGuestCount < 0) errors.extraGuestCount = 'Extra guest count cannot be negative';
+  
 
     // Additional guests validation if any
     if (formData.additionalGuests.length > 0) {
@@ -180,7 +190,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           phoneNumber: formData.phoneNumber,
           gender: formData.gender,
           age: parseInt(formData.age),
-          aadharNumber: formData.aadharNumber,
+          documentNumber: formData.documentNumber, // Replace aadharNumber
           nationality: formData.nationality,
           address: formData.address,
           companyName: formData.companyName || null,
@@ -191,11 +201,13 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
           advanceAmount: formData.advanceAmount,
+          extraGuestCount: formData.extraGuestCount || 0,
+          extraTariff: formData.extraTariff,
           // Additional Guests
           additionalGuests: formData.additionalGuests.map(guest => ({
             ...guest,
             age: parseInt(guest.age),
-            isKid: guest.isKid || false
+            isKid: guest.isKid || false,
           }))
         };
   
@@ -276,36 +288,40 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
                 </style>
               </head>
               <body>
-                <div class="email-container">
-                  <div class="header">
-                    <h1>Guest Check-In Notification</h1>
-                  </div>
+  <div class="email-container">
+    <div class="header">
+      <h1>Guest Check-In Notification</h1>
+    </div>
 
-                  <div class="details">
-                    <h2>Guest Details</h2>
-                    <p><strong>Name:</strong> {{guestName}}</p>
-                    <p><strong>Phone Number:</strong> {{guestPhone}}</p>
-                    <p><strong>Gender:</strong> {{guestGender}}</p>
-                    <p><strong>Nationality:</strong> {{guestNationality}}</p>
-                    <p><strong>Address:</strong> {{guestAddress}}</p>
-                    <p><strong>Purpose of Visit:</strong> {{guestPurpose}}</p>
-                  </div>
+    <div class="details">
+      <h2>Guest Details</h2>
+      <p><strong>Name:</strong> {{guestName}}</p>
+      <p><strong>Phone Number:</strong> {{guestPhone}}</p>
+      <p><strong>Gender:</strong> {{guestGender}}</p>
+      <p><strong>Document Number:</strong> {{guestDocument}}</p>
+      <p><strong>Nationality:</strong> {{guestNationality}}</p>
+      <p><strong>Address:</strong> {{guestAddress}}</p>
+      <p><strong>Purpose of Visit:</strong> {{guestPurpose}}</p>
+    </div>
 
-                  <div class="details">
-                    <h2>Booking Details</h2>
-                    <p><strong>Room Number:</strong> {{roomNumber}}</p>
-                    <p><strong>Check-In:</strong> {{checkIn}}</p>
-                    <p><strong>Check-Out:</strong> {{checkOut}}</p>
-                    <p><strong>Booking Type:</strong> {{bookingType}}</p>
-                    <p><strong>Advance Amount:</strong> {{advanceAmount}}</p>
-                  </div>
+    <div class="details">
+      <h2>Booking Details</h2>
+      <p><strong>Room Number:</strong> {{roomNumber}}</p>
+      <p><strong>Check-In:</strong> {{checkIn}}</p>
+      <p><strong>Check-Out:</strong> {{checkOut}}</p>
+      <p><strong>Booking Type:</strong> {{bookingType}}</p>
+      <p><strong>Advance Amount:</strong> {{advanceAmount}}</p>
+      <p><strong>Extra Guests:</strong> {{extraGuestCount}}</p>
+      <p><strong>Total Guests:</strong> {{totalGuests}}</p>
+      <p><strong>Extra Tariff:</strong> ₹{{extraTariffAmount}} ({{extraTariffRemarks}})</p>
+    </div>
 
-                  <div class="footer">
-                    <p>Thank you for using our hotel management system.</p>
-                    <p>Need help? Contact us at <a href="mailto:{{hotelEmail}}">quasar-help</a>.</p>
-                  </div>
-                </div>
-              </body>
+    <div class="footer">
+      <p>Thank you for using our hotel management system.</p>
+      <p>Need help? Contact us at <a href="mailto:{{hotelEmail}}">quasar-help</a>.</p>
+    </div>
+  </div>
+</body>
               </html>
 
           `.replace('{{guestName}}', formData.fullName)
@@ -319,7 +335,11 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
            .replace('{{checkOut}}', formData.checkOut)
            .replace('{{bookingType}}', formData.bookingType)
            .replace('{{advanceAmount}}', formData.advanceAmount || 'N/A')
-           .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
+           .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com')
+           .replace('{{extraGuestCount}}', formData.extraGuestCount)
+    .replace('{{totalGuests}}', 1 + formData.extraGuestCount)
+    .replace('{{extraTariffAmount}}', formData.extraTariff?.amount || 0)
+    .replace('{{extraTariffRemarks}}', formData.extraTariff?.remarks || 'N/A') // Replace with actual hotel email
         };
           const response = await window.electron.sendEmail(emailData);
         if (response.success) {

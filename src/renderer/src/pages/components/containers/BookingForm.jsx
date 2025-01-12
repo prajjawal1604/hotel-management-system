@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRoomsStore } from '../../../store/roomsStore';
 import { Upload, Building2, Calendar, CreditCard, Users, PlusCircle, X, Loader2 } from 'lucide-react';
+import TimeInput from '../../../components/CheckoutDateTimeInput';
 
 // Document Upload Component
 const DocumentUpload = ({ onUpload, title, disabled, isLoading }) => (
@@ -38,6 +39,8 @@ const BookingForm = ({
 }) => {
   const [uploadingPrimary, setUploadingPrimary] = useState(false);
   const [uploadingAdditional, setUploadingAdditional] = useState(null);
+  const [extraGuestCount, setExtraGuestCount] = useState(formData.extraGuestCount || 0);
+  
 
   // Handle primary guest changes
   const handlePrimaryGuestChange = (field, value) => {
@@ -118,13 +121,13 @@ const BookingForm = ({
   };
 
   const addAdditionalGuest = () => {
-    const totalGuests = 1 + formData.additionalGuests.length;
-    const maxGuests = space.maxOccupancy.adults + space.maxOccupancy.kids;
+    // const totalGuests = 1 + formData.additionalGuests.length;
+    // const maxGuests = space.maxOccupancy.adults + space.maxOccupancy.kids;
 
-    if (totalGuests >= maxGuests) {
-      alert(`Maximum ${maxGuests} guests allowed (${space.maxOccupancy.adults} adults, ${space.maxOccupancy.kids} kids)`);
-      return;
-    }
+    // if (totalGuests >= maxGuests) {
+    //   alert(`Maximum ${maxGuests} guests allowed (${space.maxOccupancy.adults} adults, ${space.maxOccupancy.kids} kids)`);
+    //   return;
+    // }
 
     setFormData(prev => ({
       ...prev,
@@ -149,6 +152,107 @@ const BookingForm = ({
       additionalGuests: prev.additionalGuests.filter((_, i) => i !== index)
     }));
   };
+  const [isEditingCheckIn, setIsEditingCheckIn] = useState(false);
+const [isEditingCheckOut, setIsEditingCheckOut] = useState(false);
+
+ // Add this section in place of the Aadhar Number field
+ const documentNumberField = (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-600">Document Number</label>
+    <input
+      type="text"
+      value={formData.documentNumber}
+      onChange={(e) => handlePrimaryGuestChange('documentNumber', e.target.value)}
+      placeholder="Enter ID document number"
+      disabled={disabled}
+      className={`w-full px-4 py-2 rounded-lg border ${
+        validationErrors.documentNumber ? 'border-red-500' : 'border-gray-200'
+      } disabled:bg-gray-50 disabled:text-gray-500`}
+    />
+    {validationErrors.documentNumber && (
+      <p className="text-sm text-red-600">{validationErrors.documentNumber}</p>
+    )}
+  </div>
+);
+
+// Add this near the Additional Guests section
+const extraGuestSection = (
+  <div className="flex justify-between items-center mb-6">
+    <div className="flex items-center gap-4">
+      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        <Users size={20} />
+        Additional Guests
+      </h3>
+      <div className="flex items-center gap-2">
+        <label className="text-sm text-gray-600">Extra Guests:</label>
+        <input
+          type="number"
+          min="0"
+          value={extraGuestCount}
+          onChange={(e) => {
+            const value = parseInt(e.target.value) || 0;
+            setExtraGuestCount(value);
+            handlePrimaryGuestChange('extraGuestCount', value);
+          }}
+          className="w-20 px-2 py-1 border rounded-md"
+          placeholder="0"
+          onWheel={(e) => e.target.blur()} // Disable scroll change
+          onKeyDown={(e) => e.key === 'ArrowUp' || e.key === 'ArrowDown' ? e.preventDefault() : null} // Disable arrow keys
+        />
+      </div>
+    </div>
+    {!disabled && (
+      <button
+        type="button"
+        onClick={addAdditionalGuest}
+        className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+      >
+        <PlusCircle size={20} />
+        Add Guest
+      </button>
+    )}
+  </div>
+);
+
+// Add this new section for Extra Tariff
+const extraTariffSection = (
+  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mt-6">
+    <h3 className="text-lg font-semibold text-gray-800 mb-4">Extra Tariff</h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-600">Amount</label>
+        <input
+          type="number"
+          value={formData.extraTariff?.amount || ''}
+          onChange={(e) => handlePrimaryGuestChange('extraTariff', {
+            ...formData.extraTariff,
+            amount: parseFloat(e.target.value) || 0
+          })}
+          placeholder="Enter amount"
+          onWheel={(e) => e.target.blur()} // Disable scroll change
+          onKeyDown={(e) => e.key === 'ArrowUp' || e.key === 'ArrowDown' ? e.preventDefault() : null} // Disable arrow keys
+          className="w-full px-4 py-2 rounded-lg border border-gray-200"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-600">Remarks</label>
+        <input
+          type="text"
+          value={formData.extraTariff?.remarks || ''}
+          onChange={(e) => handlePrimaryGuestChange('extraTariff', {
+            ...formData.extraTariff,
+            remarks: e.target.value
+          })}
+          placeholder="Enter remarks"
+          className="w-full px-4 py-2 rounded-lg border border-gray-200"
+        />
+      </div>
+    </div>
+    <div className="mt-4 text-sm text-gray-600">
+      Total Guests: {extraGuestCount > 0 ? 1 + extraGuestCount : formData.additionalGuests.length}
+    </div>
+  </div>
+);
 
   return (
     <div className="space-y-8">
@@ -182,54 +286,58 @@ const BookingForm = ({
           Max Occupancy: {space.maxOccupancy.adults} Adults, {space.maxOccupancy.kids} Kids
         </div>
       </div>
+{/* Booking Time Selection */}
+<div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <Calendar size={20} />
+    Booking Duration
+  </h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-600">
+        Check-in Date & Time*
+      </label>
+      <TimeInput
+        value={formData.checkIn}
+        isEditing={isEditingCheckIn}
+        onSave={(newDateTime) => {
+          // Convert Date object to ISO string for consistent storage
+          const isoString = newDateTime instanceof Date ? 
+            newDateTime.toISOString() : 
+            new Date(newDateTime).toISOString();
+          handlePrimaryGuestChange('checkIn', isoString);
+          setIsEditingCheckIn(false);
+        }}
+        onEditClick={() => setIsEditingCheckIn(true)}
+      />
+      {validationErrors.checkIn && (
+        <p className="text-sm text-red-600">{validationErrors.checkIn}</p>
+      )}
+    </div>
 
-      {/* Booking Time Selection */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          <Calendar size={20} />
-          Booking Duration
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">
-              Check-in Date & Time*
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.checkIn}
-              onChange={(e) => handlePrimaryGuestChange('checkIn', e.target.value)}
-              disabled={disabled}
-              className={`w-full px-4 py-2 rounded-lg border ${
-                validationErrors.checkIn ? 'border-red-500' : 'border-gray-200'
-              } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
-            />
-            {validationErrors.checkIn && (
-              <p className="text-sm text-red-600">{validationErrors.checkIn}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">
-              Check-out Date & Time*
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.checkOut}
-              onChange={(e) => handlePrimaryGuestChange('checkOut', e.target.value)}
-              min={formData.checkIn}
-              disabled={disabled}
-              className={`w-full px-4 py-2 rounded-lg border ${
-                validationErrors.checkOut ? 'border-red-500' : 'border-gray-200'
-              } disabled:bg-gray-50 disabled:text-gray-500`}
-              required
-            />
-            {validationErrors.checkOut && (
-              <p className="text-sm text-red-600">{validationErrors.checkOut}</p>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-600">
+        Check-out Date & Time*
+      </label>
+      <TimeInput
+        value={formData.checkOut}
+        isEditing={isEditingCheckOut}
+        onSave={(newDateTime) => {
+          // Convert Date object to ISO string for consistent storage
+          const isoString = newDateTime instanceof Date ? 
+            newDateTime.toISOString() : 
+            new Date(newDateTime).toISOString();
+          handlePrimaryGuestChange('checkOut', isoString);
+          setIsEditingCheckOut(false);
+        }}
+        onEditClick={() => setIsEditingCheckOut(true)}
+      />
+      {validationErrors.checkOut && (
+        <p className="text-sm text-red-600">{validationErrors.checkOut}</p>
+      )}
+    </div>
+  </div>
+</div>
       {/* Primary Guest Details */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -293,7 +401,7 @@ const BookingForm = ({
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">Age*</label>
+            <label className="block text-sm font-medium text-gray-600">Age</label>
             <input
               type="number"
               value={formData.age}
@@ -301,6 +409,8 @@ const BookingForm = ({
               placeholder="Guest age"
               min="18"
               disabled={disabled}
+              onWheel={(e) => e.target.blur()} // Disable scroll change
+              onKeyDown={(e) => e.key === 'ArrowUp' || e.key === 'ArrowDown' ? e.preventDefault() : null} // Disable arrow keys
               className={`w-full px-4 py-2 rounded-lg border ${
                 validationErrors.age ? 'border-red-500' : 'border-gray-200'
               } disabled:bg-gray-50 disabled:text-gray-500`}
@@ -310,23 +420,7 @@ const BookingForm = ({
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">Aadhar Number*</label>
-            <input
-              type="text"
-              value={formData.aadharNumber}
-              onChange={(e) => handlePrimaryGuestChange('aadharNumber', e.target.value)}
-              placeholder="12-digit Aadhar number"
-              maxLength={12}
-              disabled={disabled}
-              className={`w-full px-4 py-2 rounded-lg border ${
-                validationErrors.aadharNumber ? 'border-red-500' : 'border-gray-200'
-              } disabled:bg-gray-50 disabled:text-gray-500`}
-            />
-            {validationErrors.aadharNumber && (
-              <p className="text-sm text-red-600">{validationErrors.aadharNumber}</p>
-            )}
-          </div>
+          {documentNumberField}
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-600">Nationality</label>
@@ -396,23 +490,9 @@ const BookingForm = ({
         </div>
       </div>
       {/* Additional Guests */}
+      
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Users size={20} />
-            Additional Guests
-          </h3>
-          {!disabled && (
-            <button
-              type="button"
-              onClick={addAdditionalGuest}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-            >
-              <PlusCircle size={20} />
-              Add Guest
-            </button>
-          )}
-        </div>
+      {extraGuestSection}
 
         {formData.additionalGuests.map((guest, index) => (
           <div key={index} className="mb-6 p-6 border rounded-lg bg-gray-50 relative">
@@ -636,6 +716,8 @@ const BookingForm = ({
             placeholder="Enter advance amount"
             min="0"
             disabled={disabled}
+            onWheel={(e) => e.target.blur()} // Disable scroll change
+            onKeyDown={(e) => e.key === 'ArrowUp' || e.key === 'ArrowDown' ? e.preventDefault() : null} // Disable arrow keys
             className={`w-full px-4 py-2 rounded-lg border ${
               validationErrors.advanceAmount ? 'border-red-500' : 'border-gray-200'
             } disabled:bg-gray-50 disabled:text-gray-500`}
@@ -645,6 +727,7 @@ const BookingForm = ({
           )}
         </div>
       </div>
+      {extraTariffSection}
     </div>
   );
 };

@@ -43,7 +43,7 @@ const primaryGuestSchema = new mongoose.Schema({
     phoneNumber: String,
     gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"] },
     age: Number,
-    aadharNumber: Number,
+    documentNumber: { type: String },
     nationality: String,
     address: String,
     documents: String,
@@ -58,7 +58,7 @@ const additionalGuestSchema = new mongoose.Schema({
     phoneNumber: String,
     gender: { type: String, enum: ["MALE", "FEMALE", "OTHER"] },
     age: {type:Number, default: 0},
-    aadharNumber: String,
+    documentNumber: { type: String },
     isKid: Boolean,
     documents: String
 });
@@ -69,7 +69,7 @@ const serviceSchema = new mongoose.Schema({
     units: Number,
     remarks: String,
     costPerUnit: Number,
-    dateTime: { type: Date, default: Date.now }
+    dateTime: { type: Date }
 });
 
 const bookingSchema = new mongoose.Schema({
@@ -80,6 +80,12 @@ const bookingSchema = new mongoose.Schema({
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     advanceAmount: { type: Number},
+    extraGuestCount: { type: Number, default: 0 }, // New field
+    extraTariff: {                                 // New field
+        amount: { type: Number, default: 0 },
+        remarks: { type: String },
+        guestCount: { type: Number, default: 0 }
+    },
     bookingType: { type: String, enum: ["ADVANCE", "CURRENT"], required: true },
     modeOfPayment: { type: String, enum: ["CASH", "CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"], required: false },
     status: { type: String, enum: ["ONGOING", "COMPLETED", "CANCELLED"], default: "ONGOING" }
