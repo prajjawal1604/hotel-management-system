@@ -156,7 +156,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
                     extraTariffAmount;
 
     // GST is applied to all charges except misc charges
-    const gstableAmount = subtotal - miscTotal;
+    const gstableAmount = subtotal - miscTotal - extraTariffAmount - checkoutData.serviceCharges; 
     const gstAmount = gstableAmount * (orgDetails.gst / 100);
 
     return {
