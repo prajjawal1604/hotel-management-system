@@ -37,7 +37,27 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
       const formatDate = (dateString) => {
         if (!dateString) return '';
         const date = new Date(dateString);
-        return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
+  
+        // Adjust to IST (UTC + 5:30)
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST offset in milliseconds
+        const localTime = date.getTime();
+        const istDate = new Date(localTime);
+  
+        // When storing, normalize back to UTC (subtract the offset)
+        const normalizedTime = istDate.getTime();
+  
+        // For datetime-local input, format in IST
+        const year = istDate.getFullYear();
+        const month = String(istDate.getMonth() + 1).padStart(2, '0');
+        const day = String(istDate.getDate()).padStart(2, '0');
+        const hours = String(istDate.getHours()).padStart(2, '0');
+        const minutes = String(istDate.getMinutes()).padStart(2, '0');
+  
+        // For storage, use normalized UTC (optional if used inline for submission)
+        const normalizedDate = new Date(normalizedTime).toISOString();
+  
+        // Use this for display (YYYY-MM-DDTHH:mm format for datetime-local)
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
       };
   
       return {
