@@ -132,7 +132,7 @@ const updateMiscCharge = (index, field, value) => {
     );
 
     const subtotal = checkoutData.roomCharges + checkoutData.serviceCharges + miscTotal;
-    const gstAmount = (subtotal - miscTotal) * (orgDetails.gst / 100);
+    const gstAmount = (subtotal - miscTotal - checkoutData.serviceCharges) * (orgDetails.gst / 100);
 
     return {
       roomCharges: checkoutData.roomCharges,
@@ -170,8 +170,8 @@ const updateMiscCharge = (index, field, value) => {
       // Get check-in and check-out dates for bill
       const checkInDate = new Date(formData.checkIn);
       const checkOutDate = new Date(checkoutDateTime);
-      const timeDiff = Math.abs(checkOutDate - checkInDate);
-      const days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+      // const timeDiff = Math.abs(checkOutDate - checkInDate);
+      const days = calculateDays(checkInDate, checkOutDate);
   
       const checkoutData = {
         spaceId: space._id,
@@ -232,9 +232,9 @@ const updateMiscCharge = (index, field, value) => {
             amount: parseFloat(charge.amount) || 0
           }))}
           miscSubtotal={totals.miscTotal}
-          gstPercentage={orgDetails.gst}
-          sgstCost={totals.gstAmount / 2}
-          cgstCost={totals.gstAmount / 2}
+          gstPercentage={orgDetails.gst.toFixed(2)}
+          sgstCost={totals.gstAmount.toFixed(2) / 2}
+          cgstCost={totals.gstAmount.toFixed(2) / 2}
           gstTotal={totals.gstAmount}
           grandTotal={totals.grandTotal}
           advanceAmount={advance}
