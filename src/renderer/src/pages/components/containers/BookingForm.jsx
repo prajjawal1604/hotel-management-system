@@ -137,7 +137,7 @@ const BookingForm = ({
           fullName: '',
           phoneNumber: '',
           gender: '',
-          age: 0,
+          age: null,
           aadharNumber: '',
           isKid: false,
           documents: []
