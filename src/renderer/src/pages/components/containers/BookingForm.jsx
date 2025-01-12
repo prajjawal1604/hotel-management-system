@@ -249,7 +249,7 @@ const extraTariffSection = (
       </div>
     </div>
     <div className="mt-4 text-sm text-gray-600">
-      Total Guests: {extraGuestCount > 0 ? 1 + extraGuestCount : formData.additionalGuests.length}
+      Total Guests: {extraGuestCount > 0 ? 1 + extraGuestCount : 1 + formData.additionalGuests.length}
     </div>
   </div>
 );
@@ -407,7 +407,6 @@ const extraTariffSection = (
               value={formData.age}
               onChange={(e) => handlePrimaryGuestChange('age', e.target.value)}
               placeholder="Guest age"
-              min="18"
               disabled={disabled}
               onWheel={(e) => e.target.blur()} // Disable scroll change
               onKeyDown={(e) => e.key === 'ArrowUp' || e.key === 'ArrowDown' ? e.preventDefault() : null} // Disable arrow keys

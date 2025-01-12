@@ -65,7 +65,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
         fullName: space.bookingId.guestId?.fullName || '',
         phoneNumber: space.bookingId.guestId?.phoneNumber || '',
         gender: space.bookingId.guestId?.gender || '',
-        age: space.bookingId.guestId?.age || '',
+        age: space.bookingId.guestId?.age || null,
         documentNumber: space.bookingId.guestId?.documentNumber || '',
         nationality: space.bookingId.guestId?.nationality || '',
         address: space.bookingId.guestId?.address || '',
@@ -95,7 +95,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
       fullName: '',
       phoneNumber: '',
       gender: '',
-      age: '',
+      age: null,
       documentNumber: '', // Replace aadharNumber
     extraGuestCount: 0,
     extraTariff: {
@@ -209,7 +209,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           fullName: formData.fullName,
           phoneNumber: formData.phoneNumber,
           gender: formData.gender,
-          age: parseInt(formData.age),
+          age: formData.age !== null && formData.age !== '' ? parseInt(formData.age) : null,
           documentNumber: formData.documentNumber, // Replace aadharNumber
           nationality: formData.nationality,
           address: formData.address,
@@ -224,9 +224,9 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           extraGuestCount: formData.extraGuestCount || 0,
           extraTariff: formData.extraTariff,
           // Additional Guests
-          additionalGuests: formData.additionalGuests.map(guest => ({
+          additionalGuests: formData.additionalGuests.map((guest) => ({
             ...guest,
-            age: parseInt(guest.age),
+            age: guest.age !== null && guest.age !== '' ? parseInt(guest.age) : null,
             isKid: guest.isKid || false,
           }))
         };
