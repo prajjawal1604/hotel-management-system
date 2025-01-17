@@ -74,7 +74,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
         designation: space.bookingId.guestId?.designation || '',
         purposeOfVisit: space.bookingId.guestId?.purposeOfVisit || '',
         extraGuestCount: space.bookingId.extraGuestCount || 0,
-      extraTariff: space.bookingId.extraTariff || {
+      extraTariff: space.bookingId?.extraTariff || {
         amount: 0,
         remarks: '',
         guestCount: 0

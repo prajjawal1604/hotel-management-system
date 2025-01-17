@@ -80,11 +80,10 @@ const bookingSchema = new mongoose.Schema({
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     advanceAmount: { type: Number},
-    extraGuestCount: { type: Number, default: 0 }, // New field
+    extraGuestCount: { type: Number }, // New field
     extraTariff: {                                 // New field
-        amount: { type: Number, default: 0 },
-        remarks: { type: String },
-        guestCount: { type: Number, default: 0 }
+        amount: { type: Number},
+        remarks: { type: String }
     },
     bookingType: { type: String, enum: ["ADVANCE", "CURRENT"], required: true },
     modeOfPayment: { type: String, enum: ["CASH", "CREDIT_CARD", "DEBIT_CARD", "UPI", "NET_BANKING"], required: false },
