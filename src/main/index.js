@@ -995,7 +995,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
           phoneNumber: bookingData.phoneNumber,
           gender: bookingData.gender,
           age: Number(bookingData.age),
-          aadharNumber: bookingData.aadharNumber,
+          documentNumber: bookingData.documentNumber,
           nationality: bookingData.nationality,
           address: bookingData.address,
           companyName: bookingData.companyName || null,
@@ -1018,7 +1018,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
             phoneNumber: guest.phoneNumber,
             gender: guest.gender,
             age: Number(guest.age),
-            aadharNumber: guest.aadharNumber,
+            documentNumber: guest.documentNumber,
             isKid: guest.isKid || false
           }))
         );
@@ -1038,7 +1038,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         phoneNumber: bookingData.phoneNumber,
         gender: bookingData.gender,
         age: Number(bookingData.age),
-        aadharNumber: bookingData.aadharNumber,
+        documentNumber: bookingData.documentNumber,
         nationality: bookingData.nationality,
         address: bookingData.address,
         companyName: bookingData.companyName || null,
@@ -1055,7 +1055,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
             phoneNumber: guest.phoneNumber,
             gender: guest.gender,
             age: Number(guest.age),
-            aadharNumber: guest.aadharNumber,
+            documentNumber: guest.documentNumber,
             isKid: guest.isKid || false
           }))
         );
