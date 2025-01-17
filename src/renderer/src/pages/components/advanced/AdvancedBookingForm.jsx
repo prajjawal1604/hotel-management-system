@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { User, Calendar } from 'lucide-react';
+import TimeInput from '../../../components/CheckoutDateTimeInput';
+import { useRoomsStore } from '../../../store/roomsStore';
+
 
 const AdvancedBookingForm = ({ onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -7,13 +10,15 @@ const AdvancedBookingForm = ({ onSubmit }) => {
     fullName: '',
     phoneNumber: '',
     gender: '',
-    age: '',
-    aadharNumber: '',
+    age: null,
+    documentNumber: '',
     // Booking Details
     checkIn: '',
     checkOut: '',
     advanceAmount: 0
   });
+
+  
 
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -40,9 +45,6 @@ const AdvancedBookingForm = ({ onSubmit }) => {
     if (!formData.phoneNumber?.trim()) errors.phoneNumber = 'Phone number is required';
     if (!/^\d{10}$/.test(formData.phoneNumber)) errors.phoneNumber = 'Invalid phone number';
     if (!formData.gender) errors.gender = 'Gender is required';
-    if (!formData.aadharNumber || !/^\d{12}$/.test(formData.aadharNumber)) {
-      errors.aadharNumber = 'Valid Aadhar number is required';
-    }
     if (!formData.checkIn) errors.checkIn = 'Check-in date is required';
     if (!formData.checkOut) errors.checkOut = 'Check-out date is required';
     if (new Date(formData.checkOut) <= new Date(formData.checkIn)) {
@@ -67,12 +69,28 @@ const AdvancedBookingForm = ({ onSubmit }) => {
         bookingType: 'ADVANCE',
         status: 'ONGOING'
       });
+
+      // Get updated room data to reflect changes
+            const roomData = await window.electron.getRoomData();
+              
+            if (roomData.success) {
+              useRoomsStore.getState().setSpaces(roomData.data.spaces);
+              useRoomsStore.getState().setStats(roomData.data.stats);
+            }
     } catch (error) {
       setValidationErrors({
         submit: error.message || 'Failed to submit booking'
       });
     }
   };
+  const handlePrimaryGuestChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+  const [isEditingCheckIn, setIsEditingCheckIn] = useState(false);
+  const [isEditingCheckOut, setIsEditingCheckOut] = useState(false);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
@@ -136,20 +154,14 @@ const AdvancedBookingForm = ({ onSubmit }) => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-600">Aadhar Number*</label>
+            <label className="block text-sm font-medium text-gray-600">Document Number</label>
             <input
               type="text"
-              value={formData.aadharNumber}
-              onChange={(e) => handleChange('aadharNumber', e.target.value)}
-              placeholder="12-digit Aadhar number"
-              maxLength={12}
-              className={`w-full px-4 py-2 rounded-lg border ${
-                validationErrors.aadharNumber ? 'border-red-500' : 'border-gray-200'
-              }`}
+              value={formData.documentNumber}
+              onChange={(e) => handleChange('documentNumber', e.target.value)}
+              placeholder="Enter Document ID" 
+              className={`w-full px-4 py-2 rounded-lg border border-gray-200`}
             />
-            {validationErrors.aadharNumber && (
-              <p className="text-sm text-red-600">{validationErrors.aadharNumber}</p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -158,7 +170,6 @@ const AdvancedBookingForm = ({ onSubmit }) => {
               type="number"
               value={formData.age}
               onChange={(e) => handleChange('age', e.target.value)}
-              min="0"
               className="w-full px-4 py-2 rounded-lg border border-gray-200"
             />
           </div>
@@ -177,7 +188,60 @@ const AdvancedBookingForm = ({ onSubmit }) => {
       </div>
 
       {/* Booking Details */}
+
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <Calendar size={20} />
+    Booking Duration
+  </h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-600">
+        Check-in Date & Time*
+      </label>
+      <TimeInput
+        value={formData.checkIn}
+        isEditing={isEditingCheckIn}
+        onSave={(newDateTime) => {
+          // Convert Date object to ISO string for consistent storage
+          const isoString = newDateTime instanceof Date ? 
+            newDateTime.toISOString() : 
+            new Date(newDateTime).toISOString();
+          handlePrimaryGuestChange('checkIn', isoString);
+          setIsEditingCheckIn(false);
+        }}
+        onEditClick={() => setIsEditingCheckIn(true)}
+      />
+      {validationErrors.checkIn && (
+        <p className="text-sm text-red-600">{validationErrors.checkIn}</p>
+      )}
+    </div>
+
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-600">
+        Check-out Date & Time*
+      </label>
+      <TimeInput
+        value={formData.checkOut}
+        isEditing={isEditingCheckOut}
+        onSave={(newDateTime) => {
+          // Convert Date object to ISO string for consistent storage
+          const isoString = newDateTime instanceof Date ? 
+            newDateTime.toISOString() : 
+            new Date(newDateTime).toISOString();
+          handlePrimaryGuestChange('checkOut', isoString);
+          setIsEditingCheckOut(false);
+        }}
+        onEditClick={() => setIsEditingCheckOut(true)}
+      />
+      {validationErrors.checkOut && (
+        <p className="text-sm text-red-600">{validationErrors.checkOut}</p>
+      )}
+    </div>
+  </div>
+  </div>
+
+      {/* <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <Calendar size={20} />
           Booking Details
@@ -214,7 +278,7 @@ const AdvancedBookingForm = ({ onSubmit }) => {
             )}
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Submit Button */}
       <div className="flex justify-end">

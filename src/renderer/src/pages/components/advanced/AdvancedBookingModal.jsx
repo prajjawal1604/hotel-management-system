@@ -205,6 +205,15 @@ const AdvancedBookingModal = ({ onClose }) => {
       
       setActiveTab('list');
 
+      // Get updated room data to reflect changes
+      const roomData = await window.electron.getRoomData();
+        
+      if (roomData.success) {
+        useRoomsStore.getState().setSpaces(roomData.data.spaces);
+        useRoomsStore.getState().setStats(roomData.data.stats);
+      }
+      
+
       const emailData = {
         
         to: orgDetails.email, // Replace with the hotel's owner email
@@ -319,6 +328,8 @@ const AdvancedBookingModal = ({ onClose }) => {
     } finally {
       setLoading(false);
     }
+
+
   };
 
   // Handle room assignment
@@ -391,7 +402,7 @@ const AdvancedBookingModal = ({ onClose }) => {
             {booking.guestId?.phoneNumber || 'N/A'}
           </div>
           <div className="mt-1 text-sm text-gray-500">
-            Aadhar: {booking.guestId?.aadharNumber || 'N/A'}
+            Document ID: {booking.guestId?.documentNumber || 'N/A'}
           </div>
         </div>
       </div>
