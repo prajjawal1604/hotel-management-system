@@ -79,6 +79,7 @@ const HotelBill = ({
       {title}
     </h2>
   );
+  console.log(extraTariff)
 
   return (
     <div style={{

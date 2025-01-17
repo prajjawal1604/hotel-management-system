@@ -74,7 +74,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
         designation: space.bookingId.guestId?.designation || '',
         purposeOfVisit: space.bookingId.guestId?.purposeOfVisit || '',
         extraGuestCount: space.bookingId.extraGuestCount || 0,
-      extraTariff: space.bookingId.extraTariff || {
+      extraTariff: space.bookingId?.extraTariff || {
         amount: 0,
         remarks: '',
         guestCount: 0
@@ -210,7 +210,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           phoneNumber: formData.phoneNumber,
           gender: formData.gender,
           age: formData.age !== null && formData.age !== '' ? parseInt(formData.age) : null,
-          documentNumber: formData.documentNumber, // Replace aadharNumber
+          documentNumber: formData.documentNumber, 
           nationality: formData.nationality,
           address: formData.address,
           companyName: formData.companyName || null,
@@ -345,6 +345,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
               </html>
 
           `.replace('{{guestName}}', formData.fullName)
+          .replace('{{guestDocument}}', formData.documentNumber)
            .replace('{{guestPhone}}', formData.phoneNumber)
            .replace('{{guestGender}}', formData.gender)
            .replace('{{guestNationality}}', formData.nationality || 'N/A')

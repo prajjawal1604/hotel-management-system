@@ -995,7 +995,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
           phoneNumber: bookingData.phoneNumber,
           gender: bookingData.gender,
           age: Number(bookingData.age),
-          aadharNumber: bookingData.aadharNumber,
+          documentNumber: bookingData.documentNumber,
           nationality: bookingData.nationality,
           address: bookingData.address,
           companyName: bookingData.companyName || null,
@@ -1018,7 +1018,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
             phoneNumber: guest.phoneNumber,
             gender: guest.gender,
             age: Number(guest.age),
-            aadharNumber: guest.aadharNumber,
+            documentNumber: guest.documentNumber,
             isKid: guest.isKid || false
           }))
         );
@@ -1038,7 +1038,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         phoneNumber: bookingData.phoneNumber,
         gender: bookingData.gender,
         age: Number(bookingData.age),
-        aadharNumber: bookingData.aadharNumber,
+        documentNumber: bookingData.documentNumber,
         nationality: bookingData.nationality,
         address: bookingData.address,
         companyName: bookingData.companyName || null,
@@ -1055,7 +1055,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
             phoneNumber: guest.phoneNumber,
             gender: guest.gender,
             age: Number(guest.age),
-            aadharNumber: guest.aadharNumber,
+            documentNumber: guest.documentNumber,
             isKid: guest.isKid || false
           }))
         );
@@ -1472,7 +1472,7 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
     const { PrimaryGuest, AdditionalGuest, Booking } = models.getOrgModels();
 
     // Validate required fields
-    const requiredFields = ['fullName', 'phoneNumber', 'gender', 'aadharNumber', 'checkIn', 'checkOut'];
+    const requiredFields = ['fullName', 'phoneNumber', 'gender', 'checkIn', 'checkOut'];
     for (const field of requiredFields) {
       if (!bookingData[field]) {
         throw new Error(`${field} is required`);
@@ -1485,7 +1485,7 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
       phoneNumber: bookingData.phoneNumber,
       gender: bookingData.gender,
       age: Number(bookingData.age || 0),
-      aadharNumber: bookingData.aadharNumber
+      documentNumber: bookingData.documentNumber
     };
 
     console.log('Creating primary guest:', primaryGuestData);
@@ -1501,7 +1501,7 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
           fullName: guestData.fullName,
           gender: guestData.gender,
           age: Number(guestData.age || 0),
-          aadharNumber: guestData.aadharNumber,
+          documentNumber: guestData.documentNumber,
           isKid: guestData.isKid || false
         });
         additionalGuestIds.push(additionalGuest._id);

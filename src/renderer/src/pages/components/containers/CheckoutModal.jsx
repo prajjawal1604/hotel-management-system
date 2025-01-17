@@ -25,8 +25,12 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   const [extraTariff, setExtraTariff] = useState({
     amount: formData.extraTariff?.amount || 0,
     remarks: formData.extraTariff?.remarks || '',
-    guestCount: formData.extraTariff?.guestCount || 0
+    guestCount: formData.extraTariff?.guestCount || 0,
   });
+
+  // useEffect(() => {
+  //   console.log('Extra Tariff updated:', extraTariff);
+  // }, [extraTariff]);
 
   // Get advance amount and org details
   const advance = parseFloat(formData.advanceAmount);
@@ -716,41 +720,69 @@ const emailData = {
             </div>
 
            { /* Extra Tariff - Replace this whole section */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-4">
-                <p className="font-medium">Extra Tariff</p>
-              </div>
-              <div className="grid gap-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Amount</label>
-                    <input
-                      type="number"
-                      value={extraTariff.amount}
-                      onChange={(e) => setExtraTariff(prev => ({
-                        ...prev,
-                        amount: parseFloat(e.target.value) || 0
-                      }))}
-                      placeholder="Amount"
-                      className="w-full px-3 py-1 border rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-1">Remark</label>
-                    <input
-                      type="text"
-                      value={extraTariff.remarks}
-                      onChange={(e) => setExtraTariff(prev => ({
-                        ...prev,
-                        remarks: e.target.value
-                      }))}
-                      placeholder="Remarks"
-                      className="w-full px-3 py-1 border rounded-md"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+           <div className="bg-gray-50 p-4 rounded-lg">
+    <div className="flex justify-between items-center mb-4">
+      <p className="font-medium">Extra Tariff</p>
+    </div>
+    <div className="grid gap-4">
+      <div className="grid grid-cols-2 gap-4">
+        {/* Amount Input */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Amount</label>
+          <input
+            type="number"
+            min="0"
+            value={extraTariff.amount}
+            onChange={(e) => {
+              const value = parseFloat(e.target.value);
+              setExtraTariff((prev) => ({
+                ...prev,
+                amount: isNaN(value) || value < 0 ? 0 : value,
+              }));
+            }}
+            placeholder="Amount"
+            className="w-full px-3 py-1 border rounded-md"
+          />
+        </div>
+
+        {/* Remarks Input */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Remark</label>
+          <input
+            type="text"
+            value={extraTariff.remarks}
+            onChange={(e) => {
+              setExtraTariff((prev) => ({
+                ...prev,
+                remarks: e.target.value,
+              }));
+            }}
+            placeholder="Remarks"
+            className="w-full px-3 py-1 border rounded-md"
+          />
+        </div>
+
+        {/* Guest Count Input */}
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Guest Count</label>
+          <input
+            type="number"
+            min="0"
+            value={extraTariff.guestCount}
+            onChange={(e) => {
+              const value = parseInt(e.target.value, 10);
+              setExtraTariff((prev) => ({
+                ...prev,
+                guestCount: isNaN(value) || value < 0 ? 0 : value,
+              }));
+            }}
+            placeholder="Guest Count"
+            className="w-full px-3 py-1 border rounded-md"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
 
                         {/* Grand Total */}
             <div className="bg-gray-50 p-4 rounded-lg">
