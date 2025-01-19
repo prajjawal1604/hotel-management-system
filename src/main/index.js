@@ -1001,7 +1001,8 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
           companyName: bookingData.companyName || null,
           gstin: bookingData.gstin || null,
           designation: bookingData.designation || null,
-          purposeOfVisit: bookingData.purposeOfVisit || null
+          purposeOfVisit: bookingData.purposeOfVisit || null,
+          
         },
         { new: true }
       );
@@ -1044,7 +1045,8 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         companyName: bookingData.companyName || null,
         gstin: bookingData.gstin || null,
         designation: bookingData.designation || null,
-        purposeOfVisit: bookingData.purposeOfVisit || null
+        purposeOfVisit: bookingData.purposeOfVisit || null,
+        
       });
 
       // Create additional guests if any
@@ -1072,6 +1074,10 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         bookingType: 'CURRENT',
         status: 'ONGOING',
         advanceAmount: bookingData.advanceAmount,
+        extraTariff: {                                 
+          amount: bookingData.extraTariff.amount,
+          remarks: bookingData.extraTariff.remarks 
+      },
         serviceIds: [] // Initially empty, will be added later
       });
     }
