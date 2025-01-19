@@ -285,7 +285,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           extraTariff={{
             amount: totals.extraTariffAmount,
             remarks: formData.extraTariff?.remarks || '',
-            guestCount: formData.extraGuestCount || 0
+            guestCount: calculateTotalGuests() - 1 
           }}
           totalGuests={calculateTotalGuests()}
           gstPercentage={orgDetails.gst}
@@ -453,8 +453,8 @@ const emailData = {
     ${formData.additionalGuests.length > 0 ? `
       <br><small>- Additional Guests: ${formData.additionalGuests.length}</small>
     ` : ''}
-    ${extraTariff.guestCount > 0 ? `
-      <br><small>- Extra Guests: ${extraTariff.guestCount}</small>
+    ${formData.extraTariff.guestCount > 0 ? `
+      <br><small>- Extra Guests: ${formData.extraTariff.guestCount}</small>
     ` : ''}
     <br><small>Total Guests: ${calculateTotalGuests()}</small>
   </p>
@@ -477,9 +477,9 @@ const emailData = {
             ${totals.extraTariffAmount > 0 ? `
               <p><strong>Extra Tariff:</strong> 
                 <span class="amount">₹${totals.extraTariffAmount.toFixed(2)}</span>
-                ${extraTariff.guestCount > 0 ? `
-                  <br><small>Extra Guests: ${extraTariff.guestCount}</small>
-                  <br><small>Per Guest: ₹${(extraTariff.amount / extraTariff.guestCount).toFixed(2)}</small>
+                ${formData.extraTariff.guestCount > 0 ? `
+                  <br><small>Extra Guests: ${formData.extraTariff.guestCount}</small>
+                  <br><small>Per Guest: ₹${(extraTariff.amount / formData.extraTariff.guestCount).toFixed(2)}</small>
                 ` : ''}
                 ${extraTariff.remarks ? `<br><small>Remarks: ${extraTariff.remarks}</small>` : ''}
               </p>
@@ -768,7 +768,7 @@ const emailData = {
           <input
             type="number"
             min="0"
-            value={extraTariff.guestCount}
+            value={formData.extraTariff.guestCount}
             onChange={(e) => {
               const value = parseInt(e.target.value, 10);
               setExtraTariff((prev) => ({
