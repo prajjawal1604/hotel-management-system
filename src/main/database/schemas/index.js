@@ -80,8 +80,8 @@ const bookingSchema = new mongoose.Schema({
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     advanceAmount: { type: Number},
-    extraGuestCount: { type: Number }, // New field
-    extraTariff: {                                 // New field
+    extraGuestCount: { type: Number }, 
+    extraTariff: {                     
         amount: { type: Number},
         remarks: { type: String }
     },

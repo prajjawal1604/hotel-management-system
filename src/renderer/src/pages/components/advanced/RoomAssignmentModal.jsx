@@ -32,7 +32,7 @@ const RoomAssignmentModal = ({ booking, onClose }) => {
       phoneNumber: booking.guestId.phoneNumber,
       gender: booking.guestId.gender,
       age: booking.guestId.age,
-      aadharNumber: booking.guestId.aadharNumber,
+      documentNumber: booking.guestId.documentNumber,
       nationality: booking.guestId.nationality || '',
       address: booking.guestId.address || '',
       companyName: booking.guestId.companyName || '',
