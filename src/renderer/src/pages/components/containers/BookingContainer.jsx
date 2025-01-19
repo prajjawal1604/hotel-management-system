@@ -76,8 +76,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
         extraGuestCount: space.bookingId.extraGuestCount || 0,
       extraTariff: space.bookingId?.extraTariff || {
         amount: 0,
-        remarks: '',
-        guestCount: 0
+        remarks: ''
       },
         // Booking details - convert dates to correct format
         checkIn: formatDate(space.bookingId.checkIn),
@@ -96,12 +95,11 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
       phoneNumber: '',
       gender: '',
       age: null,
-      documentNumber: '', // Replace aadharNumber
+      documentNumber: '',
     extraGuestCount: 0,
     extraTariff: {
       amount: 0,
       remarks: '',
-      guestCount: 0
     },
       nationality: '',
       address: '',
