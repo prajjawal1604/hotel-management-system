@@ -967,6 +967,9 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
   try {
     console.log('Creating/Updating booking:', JSON.stringify(bookingData, null, 2));
     const { Space, PrimaryGuest, AdditionalGuest, Booking } = models.getOrgModels();
+    console.log( 'amount'  , bookingData.extraTariff.amount);
+    console.log( 'remarks'  , bookingData.extraTariff.remarks);
+
 
     let booking;
     let primaryGuest;
@@ -982,7 +985,12 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
           checkOut: new Date(bookingData.checkOut),
           bookingType: 'CURRENT',
           status: 'ONGOING',
-          advanceAmount: bookingData.advanceAmount
+          advanceAmount: bookingData.advanceAmount,
+          extraTariff: {                                 
+            amount: bookingData.extraTariff.amount,
+            remarks: bookingData.extraTariff.remarks 
+        },
+        extraGuestCount: bookingData.extraGuestCount || 0
         },
         { new: true }
       );
@@ -1063,6 +1071,8 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         );
         additionalGuestIds = additionalGuests.map(g => g._id);
       }
+
+     
 
       // Create new booking
       booking = await Booking.create({

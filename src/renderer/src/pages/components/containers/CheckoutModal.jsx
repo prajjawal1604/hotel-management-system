@@ -763,7 +763,7 @@ const emailData = {
         </div>
 
         {/* Guest Count Input */}
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-600 mb-1">Guest Count</label>
           <input
             type="number"
@@ -779,7 +779,7 @@ const emailData = {
             placeholder="Guest Count"
             className="w-full px-3 py-1 border rounded-md"
           />
-        </div>
+        </div> */}
       </div>
     </div>
   </div>
