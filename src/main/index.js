@@ -1532,7 +1532,8 @@ ipcMain.handle('createAdvanceBooking', async (_, bookingData) => {
       checkOut: new Date(bookingData.checkOut),
       advanceAmount: Number(bookingData.advanceAmount || 0),
       bookingType: 'ADVANCE',
-      status: 'ONGOING'
+      status: 'ONGOING',
+      extraGuestCount: bookingData.extraGuestCount || 0,
     };
 
     console.log('Creating booking record:', bookingRecord);

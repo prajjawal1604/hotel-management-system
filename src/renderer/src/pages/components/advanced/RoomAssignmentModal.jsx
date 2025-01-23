@@ -43,6 +43,7 @@ const RoomAssignmentModal = ({ booking, onClose }) => {
       checkOut: formatDate(booking.checkOut),
       advanceAmount: booking.advanceAmount || 0,
       additionalGuests: booking.additionalGuestIds || [],
+      extraGuestCount: booking.extraGuestCount || 0,
       services: []
     };
 

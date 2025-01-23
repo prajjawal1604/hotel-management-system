@@ -15,12 +15,14 @@ const AdvancedBookingForm = ({ onSubmit }) => {
     // Booking Details
     checkIn: '',
     checkOut: '',
-    advanceAmount: 0
+    advanceAmount: 0,
+    extraGuestCount: 0,
   });
 
   
 
   const [validationErrors, setValidationErrors] = useState({});
+   const [extraGuestCount, setExtraGuestCount] = useState(formData.extraGuestCount || 0);
 
   // Handle input changes
   const handleChange = (field, value) => {
@@ -173,6 +175,7 @@ const AdvancedBookingForm = ({ onSubmit }) => {
               className="w-full px-4 py-2 rounded-lg border border-gray-200"
             />
           </div>
+          
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-600">Advance Amount</label>
@@ -184,6 +187,20 @@ const AdvancedBookingForm = ({ onSubmit }) => {
               className="w-full px-4 py-2 rounded-lg border border-gray-200"
             />
           </div>
+
+          <div className="flex items-center gap-2">
+        <label className="text-sm text-gray-600">Extra Guests:</label>
+        <input
+          type="number"
+          min="0"
+          value={formData.extraGuestCount}          
+          onChange={(e) => handleChange('extraGuestCount', e.target.value)}
+          className="w-20 px-2 py-1 border rounded-md"
+          placeholder="0"
+          onWheel={(e) => e.target.blur()} // Disable scroll change
+          onKeyDown={(e) => e.key === 'ArrowUp' || e.key === 'ArrowDown' ? e.preventDefault() : null} // Disable arrow keys
+        />
+      </div>
         </div>
       </div>
 
