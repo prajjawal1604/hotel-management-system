@@ -220,7 +220,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           checkOut: formData.checkOut,
           advanceAmount: formData.advanceAmount,
           extraGuestCount: formData.extraGuestCount || 0,
-          extraTariff: formData.extraTariff,
+          extraTariff: formData.extraTariff ,
           // Additional Guests
           additionalGuests: formData.additionalGuests.map((guest) => ({
             ...guest,

@@ -223,7 +223,7 @@ const extraTariffSection = (
         <label className="block text-sm font-medium text-gray-600">Amount</label>
         <input
           type="number"
-          value={formData.extraTariff?.amount || ''}
+          value={formData.extraTariff?.amount || 0 }
           onChange={(e) => handlePrimaryGuestChange('extraTariff', {
             ...formData.extraTariff,
             amount: parseFloat(e.target.value) || 0
