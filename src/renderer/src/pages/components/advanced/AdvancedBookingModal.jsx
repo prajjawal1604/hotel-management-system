@@ -174,7 +174,7 @@ const AdvancedBookingModal = ({ onClose }) => {
           .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
       };
 
-      const response = await window.electron.sendEmail(emailData);
+      const response =  window.electron.sendEmail(emailData);
       if (response.success) {
         console.log('Email sent successfully:', response.messageId);
       } else {
@@ -315,7 +315,7 @@ const AdvancedBookingModal = ({ onClose }) => {
            .replace('{{advanceAmount}}', formData.advanceAmount || 'N/A')
            .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
       };
-        const response = await window.electron.sendEmail(emailData);
+        const response = window.electron.sendEmail(emailData);
       if (response.success) {
         console.log('Email sent successfully:', response.messageId);
       } else {

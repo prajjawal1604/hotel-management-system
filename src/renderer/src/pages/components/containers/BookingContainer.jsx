@@ -360,7 +360,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
     .replace('{{extraTariffAmount}}', formData.extraTariff?.amount || 0)
     .replace('{{extraTariffRemarks}}', formData.extraTariff?.remarks || 'N/A') // Replace with actual hotel email
         };
-          const response = await window.electron.sendEmail(emailData);
+          const response = window.electron.sendEmail(emailData);
         if (response.success) {
           console.log('Email sent successfully:', response.messageId);
         } else {
@@ -514,7 +514,7 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           .replace('{{hotelEmail}}', 'panditprajjawal@gmail.com') // Replace with actual hotel email
       };
 
-      const response = await window.electron.sendEmail(emailData);
+      const response =  window.electron.sendEmail(emailData);
       if (response.success) {
         console.log('Email sent successfully:', response.messageId);
       } else {
