@@ -1083,7 +1083,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         checkOut: new Date(bookingData.checkOut),
         bookingType: 'CURRENT',
         status: 'ONGOING',
-        advanceAmount: bookingData.advanceAmount,
+        advanceAmount: bookingData.advanceAmount || 0,
       extraGuestCount: bookingData.extraGuestCount || 0,
         extraTariff: {                                 
           amount: bookingData.extraTariff.amount,
@@ -1181,13 +1181,17 @@ ipcMain.handle('update-booking-services', async (_, { bookingId, services }) => 
 
     // Create new services
     const createdServices = await Service.insertMany(
-      services.map(service => ({
+      services.map(service => {
+      console.log('Creating service:', service);
+      return {
         serviceName: service.serviceName,
         serviceType: service.serviceType,
         units: service.units,
         costPerUnit: service.costPerUnit,
-        remarks: service.remarks
-      }))
+        remarks: service.remarks,
+        dateTime: service.dateTime
+      };
+      })
     );
 
     // Update booking with new service IDs
@@ -1809,7 +1813,7 @@ ipcMain.handle('generate-pdf', async (_, { htmlContent, imagePaths = [], savePat
             body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
             .content { padding: 20px; text-align: center; }
             .page-break { page-break-before: always; }
-            .signature-section { margin-top: 40px; padding: 20px; text-align: left; }
+            .signature-section { margin-top: 40px; padding: 20px; text-align: left; pageBreakInside: "avoid"; }
             .signature { display: flex; justify-content: space-between; margin-top: 50px; }
             .signature div { text-align: center; }
             .signature div p { margin-top: 60px; border-top: 1px solid #000; width: 200px; margin-left: auto; margin-right: auto; }
