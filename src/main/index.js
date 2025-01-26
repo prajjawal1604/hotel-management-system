@@ -1084,6 +1084,7 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         bookingType: 'CURRENT',
         status: 'ONGOING',
         advanceAmount: bookingData.advanceAmount,
+      extraGuestCount: bookingData.extraGuestCount || 0,
         extraTariff: {                                 
           amount: bookingData.extraTariff.amount,
           remarks: bookingData.extraTariff.remarks 
