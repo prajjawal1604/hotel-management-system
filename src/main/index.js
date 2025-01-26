@@ -987,8 +987,8 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
           status: 'ONGOING',
           advanceAmount: bookingData.advanceAmount,
           extraTariff: {                                 
-            amount: bookingData.extraTariff.amount,
-            remarks: bookingData.extraTariff.remarks 
+            amount: bookingData.extraTariff.amount || 0,
+            remarks: bookingData.extraTariff.remarks || null
         },
         extraGuestCount: bookingData.extraGuestCount || 0
         },
@@ -1086,8 +1086,8 @@ ipcMain.handle('create-booking', async (_, bookingData) => {
         advanceAmount: bookingData.advanceAmount || 0,
       extraGuestCount: bookingData.extraGuestCount || 0,
         extraTariff: {                                 
-          amount: bookingData.extraTariff.amount,
-          remarks: bookingData.extraTariff.remarks 
+          amount: bookingData.extraTariff.amount || 0,
+          remarks: bookingData.extraTariff.remarks || null 
       },
         serviceIds: [] // Initially empty, will be added later
       });
