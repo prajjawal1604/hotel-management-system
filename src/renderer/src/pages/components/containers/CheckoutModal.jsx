@@ -301,13 +301,16 @@ const CheckoutModal = ({ formData, space, onClose }) => {
           orgEmail={orgDetails.email}
         />
       );
+      
+      const billingHtml = ReactDOMServer.renderToString(billHtml);
     
       const pdfOptions = {
-        htmlContent: ReactDOMServer.renderToString(billHtml),
+        htmlContent: billingHtml,
         imagePaths: documentPaths,
         savePath: `${path}/${orgDetails.orgName}/${currentYear}/${currentMonth}`,
         fileName: `${space.spaceName}-${result.data._id}.pdf`,
       };
+
   
       const pdfResult = await window.electron.generatePdf(pdfOptions);
       if (!pdfResult.success) throw new Error('Failed to generate PDF');
@@ -317,215 +320,14 @@ const CheckoutModal = ({ formData, space, onClose }) => {
   
       // Send email with checkout details
       // Email template with complete styling and data
-const emailData = {
-  to: orgDetails.email,
-  subject: 'Checkout Details',  
-  html: `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-          margin: 0;
-          padding: 0;
-        }
-          .guest-count {
-  margin-left: 15px;
-  font-size: 0.9em;
-  color: #555;
-}
-.tariff-details {
-  margin-top: 5px;
-  padding: 5px;
-  background: #f0f4f8;
-  border-radius: 4px;
-}
-        .email-container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-        }
-        .header {
-          text-align: center;
-          margin-bottom: 20px;
-          padding: 20px;
-          background-color: #007bff;
-          color: white;
-          border-radius: 6px;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 24px;
-        }
-        .details {
-          margin-bottom: 20px;
-          background: white;
-          padding: 20px;
-          border-radius: 6px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .details h2 {
-          margin: 0 0 15px;
-          font-size: 18px;
-          color: #007bff;
-          border-bottom: 2px solid #eee;
-          padding-bottom: 8px;
-        }
-        .details p {
-          margin: 8px 0;
-        }
-        .amount {
-          font-family: monospace;
-          background: #f8f9fa;
-          padding: 2px 6px;
-          border-radius: 4px;
-        }
-        .charges {
-          background: #f8f9fa;
-          padding: 10px;
-          border-radius: 4px;
-          margin-top: 10px;
-        }
-        .total {
-          margin-top: 15px;
-          padding-top: 15px;
-          border-top: 2px solid #eee;
-          font-weight: bold;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 20px;
-          padding: 20px;
-          font-size: 12px;
-          color: #666;
-          background: white;
-          border-radius: 6px;
-        }
-        .footer a {
-          color: #007bff;
-          text-decoration: none;
-        }
-        .highlight {
-          color: #28a745;
-          font-weight: bold;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="email-container">
-        <div class="header">
-          <h1>Checkout Details - ${space.spaceName}</h1>
-        </div>
+      const emailData = {
+        to: orgDetails.email,
+        subject: 'Checkout Details',  
+        html: billingHtml,
+      };
 
-        <div class="details">
-          <h2>Guest Details</h2>
-          <p><strong>Name:</strong> ${formData.fullName}</p>
-          <p><strong>Phone:</strong> ${formData.phoneNumber}</p>
-          <p><strong>Document Number:</strong> ${formData.documentNumber || 'N/A'}</p>
-          <p><strong>Nationality:</strong> ${formData.nationality || 'N/A'}</p>
-          <p><strong>Total Guests:</strong> ${calculateTotalGuests()} 
-            ${formData.extraGuestCount > 0 ? 
-              `(including ${formData.extraGuestCount} extra guests)` : ''}
-          </p>
-          ${formData.companyName ? `
-            <p><strong>Company:</strong> ${formData.companyName}</p>
-            <p><strong>GSTIN:</strong> ${formData.gstin || 'N/A'}</p>
-          ` : ''}
-        </div>
-
-        <div class="details">
-  <h2>Stay Details</h2>
-  <p><strong>Room Number:</strong> ${space.spaceName}</p>
-  <p><strong>Room Type:</strong> ${space.spaceType}</p>
-  <p><strong>Check-in:</strong> ${formatDisplayDateTime(formData.checkIn)}</p>
-  <p><strong>Check-out:</strong> ${formatDisplayDateTime(checkoutDateTime)}</p>
-  <p><strong>Duration:</strong> ${days} days</p>
-  <p><strong>Guest Count:</strong>
-    <br><small>- Primary Guest: 1</small>
-    ${formData.additionalGuests.length > 0 ? `
-      <br><small>- Additional Guests: ${formData.additionalGuests.length}</small>
-    ` : ''}
-    ${formData.extraTariff.guestCount > 0 ? `
-      <br><small>- Extra Guests: ${formData.extraTariff.guestCount}</small>
-    ` : ''}
-    <br><small>Total Guests: ${calculateTotalGuests()}</small>
-  </p>
-</div>
-
-        <div class="details">
-          <h2>Charges Breakdown</h2>
-          <div class="charges">
-            <p><strong>Room Charges:</strong> 
-              <span class="amount">₹${totals.roomCharges.toFixed(2)}</span>
-              <br><small>(${days} days @ ₹${space.basePrice}/day)</small>
-            </p>
-            
-            ${totals.serviceCharges > 0 ? `
-              <p><strong>Service Charges:</strong> 
-                <span class="amount">₹${totals.serviceCharges.toFixed(2)}</span>
-              </p>
-            ` : ''}
-
-            ${totals.extraTariffAmount > 0 ? `
-              <p><strong>Extra Tariff:</strong> 
-                <span class="amount">₹${totals.extraTariffAmount.toFixed(2)}</span>
-                ${formData.extraTariff.guestCount > 0 ? `
-                  <br><small>Extra Guests: ${formData.extraTariff.guestCount}</small>
-                  <br><small>Per Guest: ₹${(extraTariff.amount / formData.extraTariff.guestCount).toFixed(2)}</small>
-                ` : ''}
-                ${extraTariff.remarks ? `<br><small>Remarks: ${extraTariff.remarks}</small>` : ''}
-              </p>
-            ` : ''}
-
-            ${totals.miscTotal > 0 ? `
-              <p><strong>Miscellaneous Charges:</strong> 
-                <span class="amount">₹${totals.miscTotal.toFixed(2)}</span>
-              </p>
-            ` : ''}
-
-
-            <p><strong>GST (${orgDetails.gst}%):</strong> 
-              <span class="amount">₹${totals.gstAmount.toFixed(2)}</span>
-              <br><small>CGST: ₹${(totals.gstAmount/2).toFixed(2)}</small>
-              <br><small>SGST: ₹${(totals.gstAmount/2).toFixed(2)}</small>
-            </p>
-
-            <div class="total">
-              <p><strong>Advance Paid:</strong> 
-                <span class="amount">₹${advance.toFixed(2)}</span>
-              </p>
-              <p><strong>Grand Total:</strong> 
-                <span class="amount highlight">₹${totals.grandTotal.toFixed(2)}</span>
-              </p>
-              <p><strong>Amount Due:</strong> 
-                <span class="amount highlight">₹${(totals.grandTotal - advance).toFixed(2)}</span>
-              </p>
-              <p><strong>Payment Mode:</strong> ${modeOfPayment.replace('_', ' ')}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="footer">
-          <p>Thank you for choosing ${orgDetails.orgName}!</p>
-          <p>For any queries, please contact us at <a href="mailto:${orgDetails.email}">${orgDetails.email}</a></p>
-          <p>GST Number: ${orgDetails.gstNumber}</p>
-          ${new Date().toLocaleString()}
-        </div>
-      </div>
-    </body>
-    </html>
-  `
-};
   
-      const response = await window.electron.sendEmail(emailData);
+      const response = window.electron.sendEmail(emailData);
       if (!response.success) {
         console.error('Failed to send email:', response.error);
       }
