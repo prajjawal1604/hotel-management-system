@@ -39,14 +39,11 @@ const RoomAssignmentModal = ({ booking, onClose }) => {
       gstin: booking.guestId.gstin || '',
       designation: booking.guestId.designation || '',
       purposeOfVisit: booking.guestId.purposeOfVisit || '',
-      checkIn: booking.checkIn,
-      checkOut: booking.checkOut,
+      checkIn: formatDate(booking.checkIn),
+      checkOut: formatDate(booking.checkOut),
       advanceAmount: booking.advanceAmount || 0,
       additionalGuests: booking.additionalGuestIds || [],
       extraGuestCount: booking.extraGuestCount || 0,
-      extraTariff: booking.extraTariff || {
-        amount: 0,
-        remarks: ''},
       services: []
     };
 

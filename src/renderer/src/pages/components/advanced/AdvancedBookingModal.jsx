@@ -387,91 +387,77 @@ const AdvancedBookingModal = ({ onClose }) => {
   };
 
   // Render booking list item
-  const renderBookingItem = (booking) => {
-    const formatDateTime = (dateString) => {
-      const options = { 
-        year: 'numeric', 
-        month: '2-digit', 
-        day: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        hour12: true 
-      };
-      return new Date(dateString).toLocaleString('en-GB', options);
-    };
-
-    return (
-      <div key={booking._id} 
-        className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 
-          transition-colors">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <User size={20} className="text-gray-500" />
-              {booking.guestId?.fullName || 'N/A'}
-            </h3>
-            <div className="mt-1 text-sm text-gray-600 flex items-center gap-2">
-              <Phone size={16} />
-              {booking.guestId?.phoneNumber || 'N/A'}
-            </div>
-            <div className="mt-1 text-sm text-gray-500">
-              Document ID: {booking.guestId?.documentNumber || 'N/A'}
-            </div>
+  const renderBookingItem = (booking) => (
+    <div key={booking._id} 
+      className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:border-blue-300 
+        transition-colors">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <User size={20} className="text-gray-500" />
+            {booking.guestId?.fullName || 'N/A'}
+          </h3>
+          <div className="mt-1 text-sm text-gray-600 flex items-center gap-2">
+            <Phone size={16} />
+            {booking.guestId?.phoneNumber || 'N/A'}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="text-sm">
-            <p className="text-gray-500 flex items-center gap-1 mb-[10px]">
-              <Calendar size={16} />
-              Check-in: {formatDateTime(booking.checkIn)}
-            </p>
-            <p className="text-gray-500">
-              Advance: ₹{booking.advanceAmount || 0}
-            </p>
+          <div className="mt-1 text-sm text-gray-500">
+            Document ID: {booking.guestId?.documentNumber || 'N/A'}
           </div>
-          <div className="text-sm">
-            <p className="text-gray-500 flex items-center gap-1 mt-1">
-              <Clock size={16} />
-              Check-out: {formatDateTime(booking.checkOut)}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3">
-          {booking.status === 'ONGOING' && (
-            <>
-              <button
-                onClick={() => handleAssignRoom(booking)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
-                  transition-colors"
-              >
-                Assign Room
-              </button>
-              <button
-                onClick={() => handleDeleteBooking(booking)}
-                disabled={deletingBookingId === booking._id}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 
-                  transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {deletingBookingId === booking._id ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={16} />
-                    Delete
-                  </>
-                )}
-              </button>
-            </>
-          )}
         </div>
       </div>
-    );
-  };
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="text-sm">
+          <p className="text-gray-500 flex items-center gap-1 mb-[10px]">
+            <Calendar size={16} />
+            Check-in: {new Date(booking.checkIn).toLocaleDateString()}
+          </p>
+          <p className="text-gray-500">
+            Advance: ₹{booking.advanceAmount || 0}
+          </p>
+        </div>
+        <div className="text-sm">
+          <p className="text-gray-500 flex items-center gap-1 mt-1">
+            <Clock size={16} />
+            Check-out: {new Date(booking.checkOut).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        {booking.status === 'ONGOING' && (
+          <>
+            <button
+              onClick={() => handleAssignRoom(booking)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
+                transition-colors"
+            >
+              Assign Room
+            </button>
+            <button
+              onClick={() => handleDeleteBooking(booking)}
+              disabled={deletingBookingId === booking._id}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 
+                transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {deletingBookingId === booking._id ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 size={16} />
+                  Delete
+                </>
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <>

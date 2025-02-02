@@ -243,7 +243,6 @@ const CheckoutModal = ({ formData, space, onClose }) => {
       if (!result.success) {
         throw new Error(result.message || 'Checkout failed');
       }
-      console.log('Checkout docs:', formData.documents);  
   
       // Get all document paths
       const documentPaths = [
@@ -253,7 +252,7 @@ const CheckoutModal = ({ formData, space, onClose }) => {
         )
       ];
 
-      // console.log('Document paths before PDF:', documentPaths);
+      console.log('Document paths before PDF:', documentPaths);
   
       // Generate PDF with document paths
       const path = await getDesktopPath();
