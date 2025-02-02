@@ -149,11 +149,6 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
     return baseAmount + servicesAmount;
   };
-  
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toISOString().slice(0, 16); // Format: YYYY-MM-DDTHH:mm
-  };
 
   // Validation
   const validateBookingData = () => {
@@ -221,8 +216,8 @@ const [showCancelConfirm, setShowCancelConfirm] = useState(false);
           designation: formData.designation || null,
           purposeOfVisit: formData.purposeOfVisit || null,
           // Booking details
-          checkIn: formatDate(formData.checkIn),
-          checkOut: formatDate(formData.checkOut),
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut,
           advanceAmount: formData.advanceAmount,
           extraGuestCount: formData.extraGuestCount || 0,
           extraTariff: formData.extraTariff ,

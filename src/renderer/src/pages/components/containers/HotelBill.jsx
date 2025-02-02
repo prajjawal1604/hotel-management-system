@@ -303,7 +303,7 @@ const HotelBill = ({
       </div>
 
       {/* Footer */}
-      {/* <div style={{ 
+      <div style={{ 
         marginTop: "30px", 
         textAlign: "center",
         borderTop: "1px solid #ddd",
@@ -313,7 +313,7 @@ const HotelBill = ({
       }}>
         <p style={{ margin: "5px 0" }}>Thank you for choosing {orgName}!</p>
         <p style={{ margin: "5px 0" }}>For any queries, please contact us at {orgEmail}</p>
-      </div> */}
+      </div>
     </div>
   );
 };
